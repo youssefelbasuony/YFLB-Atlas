@@ -368,11 +368,17 @@ body.has-learning-drawer { overflow: hidden; }
   .hub-copy strong { font-size: 0.75rem; }
 }
 @media (max-width: 620px) {
-  .platform-tools { gap: 0.3rem; }
-  .search-wrap input { height: 42px; padding-inline-start: 2.45rem; font-size: 0.82rem; }
+  .platform-header { flex-wrap: nowrap; min-height: 0; gap: 0.4rem; padding: 0.4rem 0.7rem; }
+  .platform-brand { min-height: 42px; gap: 0.38rem; }
+  .platform-brand img { width: 56px; height: 30px; }
+  .platform-brand .brand-name { font-size: 1.08rem; letter-spacing: 0.075em; }
+  .brand-divider { height: 22px; }
+  .platform-tools { flex: 1 1 auto; order: initial; gap: 0.28rem; }
+  .search-wrap { flex: 1 1 auto; min-width: 0; }
+  .search-wrap input { height: 40px; padding-inline-start: 2.25rem; font-size: 0.78rem; }
   .search-icon { inset-inline-start: 0.72rem; }
   .search-wrap kbd { display: none; }
-  .icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  .icon-button { width: 40px; height: 40px; flex-basis: 40px; }
   .page-content { padding-inline: 0.85rem; }
   .catalog-hero { padding: 1.25rem; border-radius: var(--radius-lg); }
   .catalog-hero h1 { font-size: clamp(2.18rem, 11vw, 3.1rem); }
@@ -413,17 +419,21 @@ body.has-learning-drawer { overflow: hidden; }
   .roadmap-guidance { align-items: flex-start; }
   .roadmap-guidance p { font-size: 0.7rem; }
   .roadmap-guidance > span { font-size: 0.66rem; }
-  .roadmap-map::before { inset-inline-start: 50%; inset-block: 35px; transform: translateX(-50%); }
-  .map-row { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 0.55rem; padding: 0.7rem 0 0.9rem; }
+  .roadmap-map { display: grid; gap: 0.18rem; padding-inline-start: 0.08rem; }
+  .map-connector-layer { display: none; }
+  .roadmap-map::before { inset-inline-start: 0.37rem; inset-block: 1.35rem 0.8rem; transform: none; border-radius: var(--radius-pill); }
+  .map-row { grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 0.45rem; padding-block: 0.35rem 0.6rem; padding-inline-start: 1.05rem; padding-inline-end: 0; }
+  .map-row::before { position: absolute; z-index: 3; inset-block-start: 1.45rem; inset-inline-start: 0.06rem; width: 0.66rem; height: 0.66rem; border: 2px solid var(--color-surface); border-radius: 50%; background: var(--color-secondary); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-secondary) 32%, var(--color-border)); content: ""; }
   .map-hub { grid-row: 1; }
   .map-branch { grid-row: 2; }
   .map-spacer { display: none; }
-  .map-hub { width: auto; min-height: 62px; margin-inline-start: 0; }
-  .map-branch { padding: 0.2rem 0; }
-  .topic-grid { grid-template-columns: minmax(0, 1fr); gap: 0.42rem; }
+  .map-hub { width: 100%; min-height: 62px; margin: 0; }
+  .map-branch { margin-inline-start: 0.3rem; padding-block: 0.2rem; padding-inline-start: 0.58rem; padding-inline-end: 0; border-inline-start: 1px dashed color-mix(in srgb, var(--color-secondary) 42%, var(--color-border)); }
+  .topic-grid { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .topic-item { width: 100%; justify-self: stretch; gap: 0; }
   .connected-path-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .connected-paths { padding: 0.85rem; }
-  .topic-node { min-height: 72px; padding: 0.4rem 0.5rem; }
+  .topic-node { min-height: 62px; padding: 0.62rem 0.72rem; border-radius: 0.62rem; }
   .topic-node.node-learning, .topic-node.node-done, .topic-node.node-skip { grid-template-columns: 22px minmax(0, 1fr); }
   .node-marker { width: 21px; height: 21px; }
   .node-label { font-size: 0.67rem; }
@@ -439,10 +449,17 @@ body.has-learning-drawer { overflow: hidden; }
   .platform-footer > span { text-align: start; }
   html[dir="rtl"] .platform-footer > span { text-align: start; }
 }
+@media (max-width: 460px) {
+  .platform-header { flex-wrap: wrap; gap: 0.28rem 0.45rem; padding: 0.38rem 0.65rem; }
+  .platform-brand { flex: 1 1 100%; min-height: 34px; }
+  .platform-brand img { width: 52px; height: 28px; }
+  .platform-tools { flex: 1 1 100%; order: 2; }
+  .search-wrap input { height: 39px; }
+}
 @media (max-width: 390px) {
   .platform-brand { gap: 0.42rem; }
-  .platform-brand .brand-name { font-size: 1.16rem; }
-  .platform-brand img { width: 62px; }
+  .platform-brand .brand-name { font-size: 1.02rem; }
+  .icon-button { width: 38px; height: 38px; flex-basis: 38px; }
   .hero-node { min-width: 98px !important; font-size: 0.55rem; }
   .topic-grid { grid-template-columns: 1fr; }
   .connected-path-grid { grid-template-columns: 1fr; }
