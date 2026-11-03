@@ -31,18 +31,22 @@ service cloud.firestore {
       let payload = request.resource.data.payload;
       return payload is map
         && payload.keys().hasOnly([
-          'id', 'category', 'title', 'summary', 'modules', 'topicCount'
+          'id', 'category', 'title', 'summary', 'modules', 'related', 'topicCount'
         ])
         && payload.keys().hasAll(['id', 'category', 'title', 'summary', 'modules'])
         && payload.id is string
         && payload.id == roadmapId
         && payload.category in [
-          'business', 'accounting', 'finance', 'systems', 'data', 'professional'
+          'business', 'accounting', 'finance', 'economics', 'marketing', 'people',
+          'communication', 'psychology', 'operations', 'analysis', 'systems', 'data',
+          'applied', 'professional'
         ]
         && isLocalizedText(payload.title, 200)
         && isLocalizedText(payload.summary, 5000)
         && payload.modules is list
         && payload.modules.size() <= 100
+        && (!('related' in payload)
+          || (payload.related is list && payload.related.size() <= 100))
         && (!('topicCount' in payload)
           || (payload.topicCount is int && payload.topicCount >= 0));
     }
