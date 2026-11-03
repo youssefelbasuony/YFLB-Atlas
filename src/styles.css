@@ -73,6 +73,7 @@ svg { display: block; width: 1.2rem; height: 1.2rem; fill: none; stroke: current
 .settings-option-label { color: var(--color-muted); font-size: 0.68rem; line-height: 1.3; }
 .settings-option strong { overflow-wrap: anywhere; font-size: 0.82rem; line-height: 1.4; }
 .settings-popover .settings-admin-edit { justify-content: flex-start; width: 100%; min-height: 48px; border-color: var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-foreground); font-size: 0.8rem; }
+.settings-popover .settings-admin-edit > span { position: static; width: auto; height: auto; padding: 0; margin: 0; overflow: visible; clip: auto; clip-path: none; white-space: normal; border: 0; }
 .settings-popover .settings-admin-edit:hover, .settings-popover .settings-admin-edit[aria-pressed="true"] { border-color: color-mix(in srgb, var(--color-secondary) 52%, var(--color-border)); background: var(--color-surface-subtle); }
 .settings-account { display: grid; gap: 0.38rem; width: 100%; }
 .settings-account .account-button { justify-content: flex-start; width: 100%; max-width: none; min-height: 48px; padding: 0.55rem 0.68rem; border-color: var(--color-border); background: var(--color-surface); color: var(--color-foreground); font-size: 0.8rem; text-align: start; }
