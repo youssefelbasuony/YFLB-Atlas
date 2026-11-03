@@ -18,8 +18,8 @@
   DATA.CATEGORIES.splice(0, DATA.CATEGORIES.length, ...categories);
   DATA.copy.en.categoryNames = categoryNames.en;
   DATA.copy.ar.categoryNames = categoryNames.ar;
-  DATA.copy.en.homeIntro = "Explore independent paths across business, finance, economics, people, communication, psychology, operations, information systems, data and applied industries.";
-  DATA.copy.ar.homeIntro = "استكشف مسارات مستقلة في الأعمال والتمويل والاقتصاد والأفراد والتواصل وعلم النفس والعمليات ونظم المعلومات والبيانات ومجالات تطبيقية.";
+  DATA.copy.en.homeIntro = "Explore self-paced paths across business administration, accounting, finance, economics, marketing, people and communication, information systems, data analysis and engineering, psychology, and professional skills.";
+  DATA.copy.ar.homeIntro = "استكشف مسارات تعلم ذاتي في إدارة الأعمال والمحاسبة والتمويل والاقتصاد والتسويق والأفراد والتواصل ونظم المعلومات وتحليل البيانات وهندسة البيانات وعلم النفس والمهارات المهنية.";
   DATA.copy.en.categoryIntro = "Choose from 14 broad fields and hundreds of independent specialist paths.";
   DATA.copy.ar.categoryIntro = "اختر من أربعة عشر مجالاً عاماً ومئات المسارات التخصصية المستقلة.";
   DATA.copy.en.libraryIntro = "Browse specialist paths and open any topic that interests you.";

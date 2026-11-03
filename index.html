@@ -8,30 +8,35 @@
     <script>
       try {
         const saved = JSON.parse(localStorage.getItem("professional-atlas-v3") || "null");
-        const lang = saved?.language === "ar" ? "ar" : "en";
+        const lang = /^\/ar(?:\/|$)/.test(location.pathname) || saved?.language === "ar" ? "ar" : "en";
         document.documentElement.lang = lang;
         document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
         document.documentElement.dataset.theme = saved?.theme === "dark" ? "dark" : "light";
       } catch { /* Use the default English theme until app state is available. */ }
     </script>
-    <meta name="description" content="Explore connected learning roadmaps for business, accounting, finance, information systems, data and professional skills." />
+    <meta name="description" content="Explore self-paced learning paths for business administration, accounting, finance, economics, data analytics, data engineering, information systems and professional skills." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://yflb-atlas.vercel.app/" />
+    <link rel="alternate" hreflang="en" href="https://yflb-atlas.vercel.app/" />
+    <link rel="alternate" hreflang="ar" href="https://yflb-atlas.vercel.app/ar/" />
+    <link rel="alternate" hreflang="x-default" href="https://yflb-atlas.vercel.app/" />
     <meta property="og:site_name" content="YFLB Atlas" />
-    <meta property="og:title" content="YFLB Atlas — Follow a clear learning path" />
-    <meta property="og:description" content="Explore connected learning roadmaps for business, accounting, finance, information systems, data and professional skills." />
+    <meta property="og:title" content="YFLB Atlas | Business, Accounting & Data Learning Paths" />
+    <meta property="og:description" content="Explore self-paced learning paths for business administration, accounting, finance, economics, data analytics, data engineering, information systems and professional skills." />
     <meta property="og:url" content="https://yflb-atlas.vercel.app/" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="ar_EG" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="YFLB Atlas — Follow a clear learning path" />
-    <meta name="twitter:description" content="Explore connected learning roadmaps for business, accounting, finance, information systems, data and professional skills." />
-    <title>YFLB Atlas — Follow a clear learning path</title>
+    <meta name="twitter:title" content="YFLB Atlas | Business, Accounting & Data Learning Paths" />
+    <meta name="twitter:description" content="Explore self-paced learning paths for business administration, accounting, finance, economics, data analytics, data engineering, information systems and professional skills." />
+    <title>YFLB Atlas | Business, Accounting & Data Learning Paths</title>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "YFLB Atlas",
-        "alternateName": ["YFLB", "Atlas", "yflb-atlas.vercel.app"],
+        "alternateName": ["YFLB", "Atlas", "YFLB Atlas learning platform", "منصة أطلس للتعلم"],
         "url": "https://yflb-atlas.vercel.app/"
       }
     </script>

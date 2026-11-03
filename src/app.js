@@ -93,6 +93,17 @@
     return merged;
   };
   const state = readState();
+  const hasArabicRoutePrefix = (pathname = location.pathname) => /^\/ar(?:\/|$)/.test(pathname);
+  if (hasArabicRoutePrefix()) state.language = "ar";
+  const pathForLanguage = (pathname, language = state.language) => {
+    const isArabic = hasArabicRoutePrefix(pathname);
+    if (language === "ar") return isArabic ? pathname : `/ar${pathname === "/" ? "/" : pathname}`;
+    return isArabic ? pathname.replace(/^\/ar(?=\/|$)/, "") || "/" : pathname;
+  };
+  const normalizeLocalePath = () => {
+    const pathname = pathForLanguage(location.pathname);
+    if (pathname !== location.pathname) history.replaceState(null, "", `${pathname}${location.search}${location.hash}`);
+  };
   if (readStorageValue(ACTIVE_USER_KEY)) {
     const guestState = readStoredState(GUEST_STATE_KEY);
     Object.assign(state, {
@@ -477,7 +488,7 @@
     const next = new URL(value, location.href);
     if (next.origin !== location.origin) return;
     const currentPath = `${location.pathname}${location.search}`;
-    const nextPath = `${next.pathname}${next.search}`;
+    const nextPath = `${pathForLanguage(next.pathname)}${next.search}`;
     if (currentPath === nextPath) {
       if (replace) history.replaceState(null, "", nextPath);
       render();
@@ -491,8 +502,19 @@
     }
     render();
   };
-  const roadmapHref = (roadmap, topicId) => `/roadmaps/${encodeURIComponent(roadmap.id)}/${topicId ? `?topic=${encodeURIComponent(topicId)}` : ""}`;
-  const learningHref = (roadmap, topicId, conceptId = "") => `/learn/${encodeURIComponent(roadmap.id)}/${encodeURIComponent(topicId)}/${conceptId ? `?concept=${encodeURIComponent(conceptId)}` : ""}`;
+  const syncLocalizedLinks = () => {
+    document.querySelectorAll('a[href]').forEach((anchor) => {
+      const value = anchor.getAttribute("href");
+      if (!value || value.startsWith("#") || value.startsWith("//")) return;
+      try {
+        const target = new URL(value, location.href);
+        if (target.origin !== location.origin) return;
+        anchor.setAttribute("href", `${pathForLanguage(target.pathname)}${target.search}${target.hash}`);
+      } catch { /* Ignore malformed or non-navigation links. */ }
+    });
+  };
+  const roadmapHref = (roadmap, topicId) => `${pathForLanguage(`/roadmaps/${encodeURIComponent(roadmap.id)}/`)}${topicId ? `?topic=${encodeURIComponent(topicId)}` : ""}`;
+  const learningHref = (roadmap, topicId, conceptId = "") => `${pathForLanguage(`/learn/${encodeURIComponent(roadmap.id)}/${encodeURIComponent(topicId)}/`)}${conceptId ? `?concept=${encodeURIComponent(conceptId)}` : ""}`;
   const conceptIdFor = (topic, index) => topic.subtopics?.[index]?.id || `${topic.id}-concept-${index + 1}`;
   const conceptHref = (roadmap, topic, conceptId) => learningHref(roadmap, topic.id, conceptId);
   const localizedIn = (value, language) => typeof value === "string" ? value : value?.[language] ?? value?.en ?? "";
@@ -972,6 +994,7 @@
     const rawPath = legacy ? location.hash.slice(1).split("?")[0] : location.pathname;
     const rawQuery = legacy ? location.hash.split("?").slice(1).join("?") : location.search;
     const segments = rawPath.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment));
+    if (segments[0] === "ar") segments.shift();
     const params = new URLSearchParams(rawQuery);
     let page = segments[0] || "home";
     const id = segments[1] || "";
@@ -998,7 +1021,8 @@
       pathname = `/${[oldPage, ...segments.slice(1)].map(encodeURIComponent).join("/")}/`;
     }
     const search = query.toString();
-    history.replaceState(null, "", `${pathname}${search ? `?${search}` : ""}`);
+    const localizedPath = pathForLanguage(pathname);
+    history.replaceState(null, "", `${localizedPath}${search ? `?${search}` : ""}`);
   };
   const renderLogin = (next = "") => {
     const signedIn = contentStore.user;
@@ -1014,7 +1038,9 @@
     let description = tr("metaDescription");
     let indexable = ["home", "paths", "roadmap", "learn"].includes(route.page);
     if (route.page === "roadmap" && roadmap) {
-      title = `${localized(roadmap.title)} | ${tr("appName")}`;
+      title = state.language === "ar"
+        ? `${localized(roadmap.title)} — مسار تعلم | ${tr("appName")}`
+        : `${localized(roadmap.title)} Learning Roadmap | ${tr("appName")}`;
       description = localized(roadmap.summary) || tr("libraryIntro");
     } else if (route.page === "learn" && roadmap && selected) {
       const conceptId = route.params.get("concept");
@@ -1025,7 +1051,7 @@
         ? conceptOverviewText(roadmap, selected.module, selected.topic, concept)
         : topicOverviewText(roadmap, selected.module, selected.topic);
     } else if (route.page === "paths") {
-      title = tr("allRoadmaps");
+      title = `${tr("allRoadmaps")} | ${tr("appName")}`;
       description = tr("libraryIntro");
       if (route.params.has("q") || route.params.has("category")) indexable = false;
     } else if (route.page === "learning") {
@@ -1048,10 +1074,8 @@
     description = String(description || tr("metaDescription")).replace(/\s+/g, " ").trim();
     if (description.length > 160) description = `${description.slice(0, 157).trimEnd()}…`;
     const canonicalPath = location.pathname.endsWith("/") || location.pathname === "/" ? location.pathname : `${location.pathname}/`;
-    const canonicalQuery = route.page === "learn" && route.params.has("concept")
-      ? `?concept=${encodeURIComponent(route.params.get("concept"))}`
-      : "";
-    const canonical = `${location.origin}${canonicalPath}${canonicalQuery}`;
+    if (route.page === "learn" && route.params.has("concept")) indexable = false;
+    const canonical = `${location.origin}${canonicalPath}`;
     const setContent = (selector, value) => {
       const element = document.querySelector(selector);
       if (element) element.setAttribute("content", value);
@@ -1064,10 +1088,17 @@
     setContent("meta[property='og:description']", description);
     setContent("meta[property='og:url']", canonical);
     setContent("meta[property='og:locale']", state.language === "ar" ? "ar_EG" : "en_US");
+    setContent("meta[property='og:locale:alternate']", state.language === "ar" ? "en_US" : "ar_EG");
     setContent("meta[name='twitter:title']", title);
     setContent("meta[name='twitter:description']", description);
     const canonicalLink = document.querySelector("link[rel='canonical']");
     if (canonicalLink) canonicalLink.href = canonical;
+    const englishPath = pathForLanguage(canonicalPath, "en");
+    const arabicPath = pathForLanguage(canonicalPath, "ar");
+    const languageUrls = { en: `${location.origin}${englishPath}`, ar: `${location.origin}${arabicPath}`, "x-default": `${location.origin}${englishPath}` };
+    document.querySelectorAll("link[hreflang]").forEach((link) => {
+      if (languageUrls[link.hreflang]) link.href = languageUrls[link.hreflang];
+    });
   };
   const render = () => {
     const previousContentDialog = root.querySelector("#contentEditDialog");
@@ -1151,6 +1182,7 @@
     updatePageMetadata(route);
     if (searchInput.value && document.activeElement === searchInput) updateSearchResults(searchInput.value);
     else closeSearchResults();
+    syncLocalizedLinks();
     if (focusTopicAfterRender) {
       const heading = document.getElementById("selectedTopicTitle");
       const fallback = document.querySelector(".learning-drawer .learning-page-status .topic-status-control, .topic-item.is-selected .topic-node, .topic-item.is-selected .topic-status-control");
@@ -1547,6 +1579,7 @@
     const resultOffset = hasSuggestion ? 1 : 0;
     const resultMarkup = results.length ? results.map((result, index) => `<a class="search-result" role="option" aria-selected="${index + resultOffset === searchFocusIndex}" href="${result.href}" data-search-index="${index + resultOffset}"><span class="search-result-icon">${icon(result.type === "roadmap" ? "layers" : "book")}</span><span><strong>${escapeHtml(result.title)}</strong><small>${escapeHtml(result.meta)}</small></span>${icon("arrow")}</a>`).join("") : `<div class="search-empty">${icon("search")}<span>${escapeHtml(tr("noResults"))}</span></div>`;
     searchResults.innerHTML = `${suggestion}${resultMarkup}`;
+    syncLocalizedLinks();
   };
   const closeSearchResults = () => {
     searchResults.hidden = true;
@@ -2058,7 +2091,11 @@
       first.focus();
     }
   });
-  window.addEventListener("popstate", render);
+  window.addEventListener("popstate", () => {
+    state.language = hasArabicRoutePrefix() ? "ar" : "en";
+    persist();
+    render();
+  });
   window.addEventListener("resize", drawMapConnectors);
   searchInput.addEventListener("input", () => updateSearchResults(searchInput.value));
   searchInput.addEventListener("keydown", (event) => {
@@ -2074,6 +2111,7 @@
   });
   document.getElementById("languageToggle").addEventListener("click", () => {
     state.language = state.language === "en" ? "ar" : "en";
+    normalizeLocalePath();
     searchInput.value = "";
     persist();
     render();
@@ -2101,6 +2139,7 @@
   setDocumentLanguage();
   normalizeLegacyRoute();
   if (location.pathname === "/home" || location.pathname === "/home/") history.replaceState(null, "", "/");
+  normalizeLocalePath();
   render();
   document.documentElement.classList.remove("app-hydrating");
   const adminToast = sessionStorage.getItem("atlas-admin-notice");
