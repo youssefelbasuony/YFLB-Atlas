@@ -652,6 +652,72 @@ html[dir="rtl"] .auth-card h1 { letter-spacing: 0; }
 .content-edit-note { margin: 0.35rem 0 0.6rem; color: var(--color-muted); font-size: 0.71rem; line-height: 1.45; }
 .content-edit-footer { position: sticky; inset-block-end: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.7rem; padding: 0.75rem clamp(1rem, 3vw, 1.65rem); border-block-start: 1px solid var(--color-border); background: var(--color-surface); box-shadow: 0 -5px 15px color-mix(in srgb, var(--p-black) 5%, transparent); }
 .content-edit-footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.48rem; }
+.markdown-field { grid-column: 1 / -1; gap: 0.45rem; }
+.markdown-field-label { color: var(--color-body); font-size: 0.76rem; font-weight: 700; }
+.markdown-editor { min-width: 0; overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: 0.65rem; background: var(--color-surface); }
+.markdown-editor-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.55rem; padding: 0.5rem 0.62rem; border-block-end: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.markdown-editor-toolbar > span { max-width: 56ch; color: var(--color-muted); font-size: 0.67rem; font-weight: 500; line-height: 1.45; }
+.markdown-view-switch { display: inline-flex; flex: 0 0 auto; padding: 0.18rem; border: 1px solid var(--color-border); border-radius: 0.55rem; background: var(--color-surface); }
+.markdown-view-button { min-height: 34px; padding: 0.34rem 0.62rem; border: 1px solid transparent; border-radius: 0.4rem; background: transparent; color: var(--color-muted); font: inherit; font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+.markdown-view-button.is-active { border-color: color-mix(in srgb, var(--color-secondary) 28%, var(--color-border)); background: color-mix(in srgb, var(--color-secondary) 9%, var(--color-surface)); color: var(--color-info); }
+.markdown-view-button:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.markdown-editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.markdown-editor[data-markdown-mode="split"] .markdown-editor-workspace { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.markdown-editor textarea[data-markdown-source] { display: block; width: 100%; min-width: 0; min-height: 320px; max-height: 64vh; padding: 1rem; border: 0; border-radius: 0; background: var(--color-surface); color: var(--color-foreground); font: 400 0.82rem/1.75 ui-monospace, "Cascadia Code", Consolas, monospace; resize: vertical; tab-size: 2; }
+.markdown-editor textarea[data-markdown-source]:focus-visible { outline: 3px solid var(--color-focus); outline-offset: -3px; }
+.markdown-editor textarea[data-markdown-source][hidden] { display: none; }
+.markdown-preview[hidden] { display: none; }
+.markdown-editor[data-markdown-mode="split"] .markdown-preview { max-height: min(64vh, 640px); border-inline-start: 1px solid var(--color-border); }
+.markdown-preview { min-width: 0; max-height: min(64vh, 640px); padding: clamp(0.85rem, 2vw, 1.2rem); overflow: auto; overscroll-behavior: contain; }
+.markdown-preview-empty { margin: 0; color: var(--color-muted); font-size: 0.82rem; }
+.markdown-guide { color: var(--color-muted); font-size: 0.68rem; }
+.markdown-guide summary { min-height: 36px; width: fit-content; padding-block: 0.3rem; color: var(--color-info); font-weight: 700; cursor: pointer; }
+.markdown-guide pre { max-width: 100%; margin: 0.25rem 0 0.45rem; padding: 0.7rem; overflow: auto; border: 1px solid var(--color-border); border-radius: 0.55rem; background: var(--color-surface-subtle); color: var(--color-body); font: 400 0.72rem/1.55 ui-monospace, "Cascadia Code", Consolas, monospace; }
+.markdown-guide small { display: block; line-height: 1.5; }
+.markdown-body { min-width: 0; color: var(--color-body); overflow-wrap: anywhere; text-wrap: pretty; }
+.markdown-body > :first-child { margin-block-start: 0; }
+.markdown-body > :last-child { margin-block-end: 0; }
+.markdown-body p { margin: 0.7rem 0 1rem; font-size: 0.9rem; line-height: 1.85; }
+.markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { color: var(--color-foreground); scroll-margin-block-start: 7rem; text-wrap: balance; }
+.markdown-body h2 { margin: 1.75rem 0 0.68rem; padding-block-end: 0.42rem; border-block-end: 1px solid var(--color-border); font-size: clamp(1.12rem, 2.5vw, 1.42rem); line-height: 1.35; }
+.markdown-body h3 { margin: 1.35rem 0 0.48rem; font-size: clamp(1rem, 2vw, 1.16rem); line-height: 1.42; }
+.markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 1.05rem 0 0.4rem; font-size: 0.96rem; line-height: 1.45; }
+.markdown-body ul, .markdown-body ol { display: grid; gap: 0.48rem; margin: 0.7rem 0 1.1rem; padding-inline-start: 1.4rem; font-size: 0.89rem; line-height: 1.75; }
+.markdown-body li { padding-inline-start: 0.16rem; }
+.markdown-body li::marker { color: var(--color-secondary); font-weight: 750; }
+.markdown-body .markdown-task-item { display: flex; align-items: flex-start; gap: 0.48rem; list-style: none; }
+.markdown-task-item input { width: 1rem; height: 1rem; flex: 0 0 1rem; margin-block-start: 0.28rem; accent-color: var(--color-secondary); }
+.markdown-body blockquote { margin: 1rem 0; padding: 0.72rem 0.9rem; border-inline-start: 3px solid var(--color-secondary); border-radius: 0.3rem var(--radius-sm) var(--radius-sm) 0.3rem; background: color-mix(in srgb, var(--color-secondary) 7%, var(--color-surface)); color: var(--color-body); }
+.markdown-body blockquote p { margin: 0.25rem 0; }
+.markdown-body hr { margin: 1.5rem 0; border: 0; border-block-start: 1px solid var(--color-border); }
+.markdown-body a { color: var(--color-info); font-weight: 650; text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
+.markdown-body a:hover { color: var(--color-secondary); }
+.markdown-body a:focus-visible { border-radius: 0.15rem; outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.markdown-body :not(pre) > code { padding: 0.12em 0.34em; border: 1px solid var(--color-border); border-radius: 0.36rem; background: var(--color-surface-subtle); color: var(--color-info); font: 500 0.86em/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; direction: ltr; unicode-bidi: isolate; }
+.markdown-code-block { min-width: 0; margin: 1rem 0 1.2rem; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
+.markdown-code-block figcaption { padding: 0.38rem 0.75rem; border-block-end: 1px solid var(--color-border); color: var(--color-muted); font: 600 0.68rem/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; text-align: start; }
+.markdown-code-block pre { max-width: 100%; margin: 0; padding: 0.85rem; overflow: auto; color: var(--color-foreground); font: 400 0.8rem/1.7 ui-monospace, "Cascadia Code", Consolas, monospace; tab-size: 2; }
+.markdown-code-block code { white-space: pre; unicode-bidi: isolate; }
+.markdown-table-wrap { max-width: 100%; margin: 1rem 0 1.25rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); overscroll-behavior-inline: contain; }
+.markdown-table-wrap:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.markdown-table-wrap table { width: max-content; min-width: 100%; border-collapse: collapse; color: var(--color-body); font-size: 0.84rem; line-height: 1.6; }
+.markdown-table-wrap th, .markdown-table-wrap td { min-width: 8rem; max-width: 38ch; padding: 0.62rem 0.78rem; border-block-end: 1px solid var(--color-border); border-inline-end: 1px solid var(--color-border); vertical-align: top; text-align: start; }
+.markdown-table-wrap th { background: color-mix(in srgb, var(--color-secondary) 8%, var(--color-surface)); color: var(--color-foreground); font-weight: 750; }
+.markdown-table-wrap tr:last-child td { border-block-end: 0; }
+.markdown-table-wrap th:last-child, .markdown-table-wrap td:last-child { border-inline-end: 0; }
+.markdown-table-wrap tbody tr:nth-child(even) { background: var(--color-surface-subtle); }
+.markdown-table-wrap [data-align="center"] { text-align: center; }
+.markdown-table-wrap [data-align="left"] { text-align: left; }
+.markdown-table-wrap [data-align="right"] { text-align: right; }
+.markdown-toc-link { font-size: 0.72rem !important; }
+.markdown-toc-level-3 { margin-inline-start: 0.4rem; }
+.markdown-toc-level-4, .markdown-toc-level-5, .markdown-toc-level-6 { margin-inline-start: 0.8rem; }
+.markdown-toc-link { overflow: hidden; text-overflow: ellipsis; }
+.lesson-overview-card .learning-overview-content { max-width: 72ch; }
+.lesson-overview-card .markdown-body { line-height: 1.75; }
+.learning-overview-content h2:first-child { margin-block-start: 0.5rem; }
+.learning-overview-content p { color: var(--color-body); }
+.learning-overview-content .markdown-table-wrap { background: var(--color-surface); }
 .related-path-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.42rem; margin-block-start: 0.55rem; }
 .related-path-choice { display: flex; align-items: center; gap: 0.55rem; min-width: 0; min-height: 42px; padding: 0.5rem 0.58rem; border: 1px solid var(--color-border); border-radius: 0.58rem; background: var(--color-surface); color: var(--color-body); cursor: pointer; font-size: 0.73rem; line-height: 1.35; transition: border-color var(--transition-fast), background var(--transition-fast); }
 .related-path-choice:hover { border-color: var(--color-secondary); background: var(--color-surface-subtle); }
@@ -720,6 +786,9 @@ html[dir="rtl"] .lesson-navigation [rel="prev"] > svg { transform: none; }
   .learning-content-grid { grid-template-areas: "toc" "primary" "resources"; grid-template-columns: minmax(0, 1fr); }
   .learning-toc { position: static; }
   .learning-content-aside { position: static; }
+  .markdown-editor[data-markdown-mode="split"] .markdown-editor-workspace { grid-template-columns: minmax(0, 1fr); }
+  .markdown-editor textarea[data-markdown-source] { min-height: 230px; }
+  .markdown-editor[data-markdown-mode="split"] .markdown-preview { max-height: 44vh; border-block-start: 1px solid var(--color-border); border-inline-start: 0; }
 }
 @media (max-width: 620px) {
   .platform-tools { gap: 0.32rem; }
