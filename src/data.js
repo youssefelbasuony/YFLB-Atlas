@@ -1,7 +1,7 @@
 (() => {
   const copy = {
     en: {
-      brand: "Atlas", brandAlt: "Official YFLB logo", navRoadmaps: "Roadmaps", navLearning: "My learning", navSaved: "Saved",
+      brand: "Atlas", brandLabel: "YFLB Atlas", brandAlt: "Official YFLB logo", navRoadmaps: "Roadmaps", navLearning: "My learning", navSaved: "Saved",
       searchPlaceholder: "What do you want to learn today?", skip: "Skip to main content", menu: "Open menu", themeDark: "Switch to dark theme", themeLight: "Switch to light theme",
       homeEyebrow: "Learn by doing", homeTitle: "Find a field. Follow a clear path.", homeIntro: "Explore business, accounting, finance, information systems and data through short, connected learning steps.",
       popular: "Most popular", newLabel: "Start here", allRoadmaps: "All roadmaps", createPrompt: "Choose a roadmap to begin", browseAll: "Browse all roadmaps", categories: "Categories", categoryAll: "All roadmaps", fields: "roadmaps", results: "results", noResults: "No topics or paths match your search. Try a different spelling.", didYouMean: "Did you mean",
@@ -12,14 +12,14 @@
       resetProgress: "Clear progress", resetConfirm: "Clear learning, done, and skipped marks in this browser? Saved roadmaps will stay in your list.", resetDone: "Local learning marks cleared.", clear: "Clear", close: "Close", sourceNote: "A learning guide with self-paced, suggested checkpoints. It is not a degree or professional certification.",
       home: "Home", allCategories: "All fields", startFirst: "Open any topic", journeyComplete: "Roadmap complete", openSaved: "View saved", totalTopics: "learning steps", emptyCategory: "No roadmaps in this category yet.",
       categoryNames: { business: "Business & management", accounting: "Accounting", finance: "Finance", data: "Data & analytics", systems: "Information systems", professional: "Professional foundations" },
-      search: "Search roadmaps and topics", searchResults: "Search results", primaryNav: "Main navigation", language: "Change language", pageTitle: "Atlas — Follow a clear learning path", metaDescription: "Explore connected professional learning roadmaps.",
+      search: "Search roadmaps and topics", searchResults: "Search results", primaryNav: "Main navigation", language: "Change language", pageTitle: "YFLB Atlas — Follow a clear learning path", appName: "YFLB Atlas", metaDescription: "Explore connected professional learning roadmaps.",
       homeMapRoot: "Learn a field", categoryIntro: "Explore broad fields and focused learning paths.", popularIntro: "Start with a clear, step-by-step learning route.", fieldsCountLabel: "learning paths", learningSteps: "learning steps",
       removeSaved: "Remove saved roadmap", saveRoadmap: "Save roadmap", saved: "Saved", save: "Save", inProgress: "In progress", selfPaced: "Self-paced",
       savedIntro: "Your bookmarked learning paths are collected here.", yourSpace: "Your learning", libraryIntro: "Choose a field and open any topic that interests you.", clearSearch: "Clear search", checkpointOutput: "Your checkpoint", checkpointOutputNote: "A short explanation, one example and a note in your own words.",
       studyPrompt: "Copy a study question", alreadyDone: "Completed. Reopen this checkpoint any time.", selfPacedNote: "Suggested learning guidance; adapt the pace to your needs.", breadcrumbs: "Breadcrumbs", journeyCompleteNote: "You completed all of the suggested learning checkpoints.", roadmapMap: "Learning map", connectedPaths: "Connected learning paths", connectedPathsNote: "Explore a neighboring field and learn its topics in any order.",
     },
     ar: {
-      brand: "أطلس", brandAlt: "الشعار الرسمي", navRoadmaps: "المسارات", navLearning: "تعلّمي", navSaved: "المحفوظات",
+      brand: "أطلس", brandLabel: "أطلس", brandAlt: "الشعار الرسمي", navRoadmaps: "المسارات", navLearning: "تعلّمي", navSaved: "المحفوظات",
       searchPlaceholder: "ماذا تريد أن تتعلم اليوم؟", skip: "انتقل إلى المحتوى الرئيسي", menu: "افتح القائمة", themeDark: "التبديل إلى المظهر الداكن", themeLight: "التبديل إلى المظهر الفاتح",
       homeEyebrow: "تعلّم بالتطبيق", homeTitle: "اختر مجالاً، واتبع طريقاً واضحاً.", homeIntro: "استكشف الأعمال والمحاسبة والتمويل ونظم المعلومات والبيانات من خلال خطوات تعلم قصيرة ومترابطة.",
       popular: "الأكثر استكشافاً", newLabel: "ابدأ من هنا", allRoadmaps: "كل المسارات", createPrompt: "اختر مساراً لتبدأ", browseAll: "تصفّح كل المسارات", categories: "المجالات", categoryAll: "كل المسارات", fields: "مسارات", results: "نتائج", noResults: "لم نجد موضوعات أو مسارات تطابق بحثك. جرّب كتابة أخرى.", didYouMean: "هل تقصد",
@@ -30,7 +30,7 @@
       resetProgress: "مسح التقدم", resetConfirm: "هل تريد مسح حالات التعلم والإنجاز والتخطي من هذا المتصفح؟ ستظل المسارات المحفوظة في قائمتك.", resetDone: "تم مسح حالات التعلم محلياً.", clear: "مسح", close: "إغلاق", sourceNote: "دليل تعلم ذاتي بنقاط مقترحة. لا يمنح درجة أكاديمية أو شهادة مهنية.",
       home: "الرئيسية", allCategories: "كل المجالات", startFirst: "افتح أي موضوع", journeyComplete: "اكتمل المسار", openSaved: "اعرض المحفوظات", totalTopics: "خطوات تعلم", emptyCategory: "لا توجد مسارات في هذا المجال بعد.",
       categoryNames: { business: "الأعمال والإدارة", accounting: "المحاسبة", finance: "التمويل", data: "البيانات والتحليلات", systems: "نظم المعلومات", professional: "الأسس المهنية" },
-      search: "ابحث في المسارات والموضوعات", searchResults: "نتائج البحث", primaryNav: "التنقل الرئيسي", language: "تغيير اللغة", pageTitle: "أطلس — اتبع طريقاً واضحاً للتعلم", metaDescription: "استكشف مسارات تعلم مترابطة في مجالات مهنية متنوعة.",
+      search: "ابحث في المسارات والموضوعات", searchResults: "نتائج البحث", primaryNav: "التنقل الرئيسي", language: "تغيير اللغة", pageTitle: "أطلس — اتبع طريقاً واضحاً للتعلم", appName: "أطلس", metaDescription: "استكشف مسارات تعلم مترابطة في مجالات مهنية متنوعة.",
       homeMapRoot: "تعلّم مجالاً", categoryIntro: "استكشف المجالات العامة ومسارات التعلم المتخصصة.", popularIntro: "ابدأ بطريق تعلم واضح وخطوات مرتبة.", fieldsCountLabel: "مساراً تعليمياً", learningSteps: "خطوة تعلم",
       removeSaved: "إزالة المسار من المحفوظات", saveRoadmap: "احفظ المسار", saved: "محفوظ", save: "حفظ", inProgress: "قيد التعلم", selfPaced: "تعلم ذاتي",
       savedIntro: "تجد هنا مسارات التعلم التي أضفتها إلى المحفوظات.", yourSpace: "مساحتك التعليمية", libraryIntro: "اختر مجالاً وافتح أي موضوع يهمك.", clearSearch: "امسح البحث", checkpointOutput: "ناتج نقطة التعلم", checkpointOutputNote: "شرح قصير ومثال واحد وملاحظة بصياغتك.",

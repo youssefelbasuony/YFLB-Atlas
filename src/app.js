@@ -111,6 +111,9 @@
     document.querySelector(".search-wrap kbd").textContent = isArabic ? "بحث" : "Ctrl K";
     document.querySelector("meta[name='theme-color']").content = state.theme === "dark" ? "#101c23" : "#183244";
     document.querySelector("meta[name='description']").content = tr("metaDescription");
+    document.querySelector("meta[name='application-name']").content = tr("appName");
+    document.querySelector("meta[property='og:site_name']").content = tr("appName");
+    document.querySelector("meta[property='og:title']").content = tr("pageTitle");
     document.title = tr("pageTitle");
     syncNavigation();
   };

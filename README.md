@@ -1,4 +1,4 @@
-# Atlas
+# YFLB Atlas
 
 A self-paced, bilingual learning-roadmap platform across 14 broad catalog families. The catalog contains 517 independent pathways and 46,104 ordered learning checkpoints spanning business, accounting, finance, economics, marketing, people, communication, psychology, operations, analysis, information systems, data, applied industries and professional skills.
 
