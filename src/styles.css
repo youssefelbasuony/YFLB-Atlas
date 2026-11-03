@@ -1,13 +1,5 @@
 * { box-sizing: border-box; }
 
-html.app-hydrating .platform-shell { visibility: hidden; }
-.app-hydration { position: fixed; z-index: 1000; inset: 0; display: grid; align-content: center; justify-items: center; gap: 0.8rem; background: var(--color-background); color: var(--color-muted); font-size: 0.84rem; font-weight: 700; }
-.app-hydration img { width: 90px; height: 48px; object-fit: contain; }
-html:not(.app-hydrating) .app-hydration { display: none; }
-.app-hydration [lang="ar"] { display: none; }
-html[lang="ar"] .app-hydration [lang="en"] { display: none; }
-html[lang="ar"] .app-hydration [lang="ar"] { display: inline; }
-
 html { min-width: 320px; scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -18,7 +10,7 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
-html[lang="ar"] body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+html[lang="ar"] body { font-family: var(--font-arabic); }
 button, input { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
@@ -666,6 +658,104 @@ html[dir="rtl"] .auth-card h1 { letter-spacing: 0; }
 .related-path-choice input { width: 17px; height: 17px; flex: 0 0 17px; accent-color: var(--color-secondary); }
 .related-path-choice span { overflow-wrap: anywhere; }
 .related-path-empty { grid-column: 1 / -1; margin: 0; padding: 0.55rem 0; color: var(--color-muted); font-size: 0.75rem; }
+
+/* Loading, lesson reading, and responsive interaction refinements. */
+#main-content .sr-only[role="status"] [lang="ar"] { display: none; }
+html[lang="ar"] #main-content .sr-only[role="status"] [lang="en"] { display: none; }
+html[lang="ar"] #main-content .sr-only[role="status"] [lang="ar"] { display: inline; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+#main-content[aria-busy="true"] .skeleton-page { display: grid; }
+#main-content[aria-busy="false"] .skeleton-page { display: none; }
+.skeleton-page { display: none; gap: 1.2rem; width: 100%; max-width: 1100px; margin: 0 auto; }
+.skeleton-hero, .skeleton-section { display: grid; gap: 0.85rem; padding: clamp(1.2rem, 4vw, 2.6rem); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.skeleton-hero { min-height: 300px; align-content: center; }
+.skeleton-section { gap: 1rem; }
+.skeleton-line, .skeleton-button, .skeleton-grid > span { display: block; overflow: hidden; border-radius: var(--radius-pill); background: linear-gradient(100deg, var(--color-surface-subtle) 20%, color-mix(in srgb, var(--color-border) 58%, var(--color-surface)) 38%, var(--color-surface-subtle) 58%); background-size: 220% 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; }
+.skeleton-eyebrow { width: 9rem; height: 0.75rem; }
+.skeleton-title { width: min(34rem, 82%); height: clamp(2rem, 6vw, 3.5rem); margin-block: 0.35rem; }
+.skeleton-copy { width: min(40rem, 95%); height: 0.9rem; }
+.skeleton-copy-short { width: min(27rem, 70%); }
+.skeleton-button { width: 9rem; height: 2.8rem; margin-block-start: 0.5rem; border-radius: var(--radius-sm); }
+.skeleton-heading { width: 14rem; height: 1.5rem; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; }
+.skeleton-grid > span { height: 9rem; border-radius: var(--radius-md); }
+@keyframes skeleton-shimmer { to { background-position: -220% 0; } }
+
+.language-toggle { display: inline-flex; width: auto; min-width: 82px; flex: 0 0 auto; gap: 0.4rem; padding-inline: 0.58rem; font-size: 0.74rem; font-weight: 700; }
+.language-toggle span { white-space: nowrap; }
+.roadmap-grid, .roadmap-grid-home { grid-auto-rows: 1fr; align-items: stretch; }
+.roadmap-card { display: flex; flex-direction: column; height: 100%; }
+.roadmap-card-link { display: flex; flex: 1; flex-direction: column; }
+.roadmap-card-meta > .roadmap-card-facts { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.3rem; min-width: 0; white-space: normal; text-align: end; }
+.roadmap-card-facts > span[aria-hidden="true"] { opacity: 0.6; }
+.card-action { margin-block-start: auto; padding-block-start: 0.72rem; }
+.learning-drawer { width: min(1080px, 100vw); }
+.learning-page-progress { position: sticky; z-index: 2; inset-block-start: 3.35rem; margin-block-end: 1.1rem; background: var(--color-surface); box-shadow: var(--shadow-soft); }
+.learning-topic-hero > p { max-width: 72ch; text-wrap: pretty; }
+.learning-content-grid { grid-template-areas: "primary toc" "primary resources"; grid-template-columns: minmax(0, 1fr) minmax(210px, 270px); align-items: start; gap: 0.85rem 1.1rem; }
+.learning-content-primary { grid-area: primary; min-width: 0; }
+.learning-toc { grid-area: toc; position: sticky; inset-block-start: 7.1rem; min-width: 0; }
+.learning-toc h2 { margin: 0 0 0.55rem; font-size: 0.88rem; }
+.learning-toc nav { display: grid; gap: 0.2rem; }
+.learning-toc nav a { display: flex; align-items: center; min-height: 44px; padding: 0.48rem 0.55rem; border-radius: 0.5rem; color: var(--color-body); font-size: 0.75rem; font-weight: 650; }
+.learning-toc nav a:hover { background: var(--color-surface-subtle); color: var(--color-info); }
+.learning-content-aside { grid-area: resources; inset-block-start: 7.1rem; }
+.learning-topic-hero { scroll-margin-block-start: 7.4rem; }
+.learning-card { scroll-margin-block-start: 7.4rem; }
+.lesson-complete-button { position: relative; z-index: 1; min-height: 44px; margin-block-start: 1rem; }
+.lesson-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-block-start: 1rem; }
+.lesson-navigation > :first-child { justify-self: start; }
+.lesson-navigation > :last-child { justify-self: end; }
+.lesson-navigation .button { min-height: 44px; gap: 0.38rem; padding-inline: 0.62rem; font-size: 0.76rem; white-space: nowrap; }
+.lesson-navigation [rel="prev"] > svg { transform: rotate(180deg); }
+html[dir="rtl"] .lesson-navigation svg { transform: rotate(180deg); }
+html[dir="rtl"] .lesson-navigation [rel="prev"] > svg { transform: none; }
+.learning-resources .resource-links a, .learning-resources .resource-links button { min-height: 44px; }
+.learning-toc nav a:focus-visible, .concept-card:focus-visible, .lesson-navigation a:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+.page-not-found { max-width: 760px; min-height: 340px; margin: clamp(2rem, 8vw, 5rem) auto; }
+.page-not-found p { max-width: 56ch; margin: 0; color: var(--color-muted); }
+.page-not-found > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; }
+
+@media (max-width: 900px) {
+  .learning-content-grid { grid-template-areas: "toc" "primary" "resources"; grid-template-columns: minmax(0, 1fr); }
+  .learning-toc { position: static; }
+  .learning-content-aside { position: static; }
+}
+@media (max-width: 620px) {
+  .platform-tools { gap: 0.32rem; }
+  .search-wrap input { min-height: 44px; height: 44px; }
+  .icon-button, .icon-button#menuToggle, .account-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; flex-basis: 44px; }
+  .language-toggle { width: auto; min-width: 82px; flex-basis: auto; }
+  .account-button { padding: 0; }
+  .category-link { min-height: 44px; }
+  .topic-status-control { min-height: 44px; }
+  .learning-drawer { width: 100vw; }
+  .learning-page-toolbar { inset-block-start: -0.62rem; }
+  .learning-page-progress { inset-block-start: 3rem; }
+  .learning-edit-trigger { min-width: 44px; min-height: 44px; }
+  .concept-card { min-height: 50px; }
+  .lesson-navigation .button { font-size: 0.68rem; }
+  .skeleton-grid { grid-template-columns: 1fr; }
+  .skeleton-grid > span { height: 5.5rem; }
+}
+@media (max-width: 390px) {
+  .platform-tools { gap: 0.22rem; }
+  .icon-button, .icon-button#menuToggle, .account-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; flex-basis: 44px; }
+  .language-toggle { min-width: 78px; padding-inline: 0.42rem; font-size: 0.7rem; }
+  .learning-page-status .topic-status-control { min-height: 44px; font-size: 0.66rem; }
+}
+@media (hover: none) {
+  .admin-edit-mode-toggle, .account-popover-action, .topic-status-control, .category-link,
+  .subtopic-link, .resource-links a, .resource-links button, .related-path-choice,
+  .inline-child-item .button, .content-edit-section > summary { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line, .skeleton-button, .skeleton-grid > span { animation: none; }
+}
+html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3, html[lang="ar"] .brand-name { font-family: var(--font-arabic); }
+html[dir="rtl"] .icon-arrow { transform: scaleX(-1); }
+.roadmap-card:hover .card-action .icon-arrow { transform: translateX(2px); }
+html[dir="rtl"] .roadmap-card:hover .card-action .icon-arrow { transform: translateX(-2px) scaleX(-1); }
 
 @media (max-width: 900px) {
   .learning-content-grid { grid-template-columns: minmax(0, 1fr); }

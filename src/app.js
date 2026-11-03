@@ -114,6 +114,7 @@
   let syncErrorShown = false;
   let searchFocusIndex = -1;
   let focusTopicAfterRender = false;
+  let focusMainAfterRender = false;
   let scrollToTopAfterRender = false;
   let toastTimer = 0;
   let googleSignInPending = false;
@@ -167,7 +168,7 @@
       play: '<path d="m8 5 11 7-11 7z"/>',
       reset: '<path d="M3 12a9 9 0 1 0 2.7-6.4L3 8"/><path d="M3 3v5h5"/>'
     };
-    return `<svg ${extra} viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.category}</svg>`;
+    return `<svg class="icon icon-${name}" ${extra} viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.category}</svg>`;
   };
 
   const queueCloudSync = () => {
@@ -242,6 +243,13 @@
     document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => element.setAttribute("placeholder", tr(element.dataset.i18nPlaceholder)));
     document.querySelectorAll("[data-i18n-alt]").forEach((element) => element.setAttribute("alt", tr(element.dataset.i18nAlt)));
     searchInput.setAttribute("aria-label", tr("search"));
+    const languageToggle = document.getElementById("languageToggle");
+    const languageLabel = document.getElementById("languageToggleLabel");
+    const languageAction = isArabic ? tr("switchToEnglish") : tr("switchToArabic");
+    languageToggle.setAttribute("aria-label", languageAction);
+    languageToggle.title = languageAction;
+    languageLabel.textContent = isArabic ? "الإنجليزية" : "العربية";
+    languageToggle.innerHTML = `${icon("globe")}<span id="languageToggleLabel">${escapeHtml(isArabic ? "الإنجليزية" : "العربية")}</span>`;
     document.querySelector(".platform-nav")?.setAttribute("aria-label", tr("primaryNav"));
     document.querySelector(".mobile-nav")?.setAttribute("aria-label", tr("primaryNav"));
     document.querySelector(".platform-tools")?.setAttribute("dir", isArabic ? "rtl" : "ltr");
@@ -262,8 +270,8 @@
     syncNavigation();
   };
   const activeRouteName = () => {
-    const path = location.hash.replace(/^#\/?/, "").split("?")[0];
-    return path.startsWith("roadmap/") || path.startsWith("learn/") ? "paths" : (path || "home");
+    const page = parseRoute().page;
+    return page === "roadmap" || page === "learn" ? "paths" : page;
   };
   const syncNavigation = () => {
     const route = activeRouteName();
@@ -458,15 +466,28 @@
     for (const record of searchIndex().records) if (scoreSearchRecord(record, normalized, words) >= 0) matches.add(record.roadmap.id);
     return matches;
   };
-  const setHash = (value, replace = false) => {
-    if (replace) history.replaceState(null, "", value);
-    else location.hash = value;
-    if (replace) render();
+  const setRoute = (value, replace = false) => {
+    const next = new URL(value, location.href);
+    if (next.origin !== location.origin) return;
+    const currentPath = `${location.pathname}${location.search}`;
+    const nextPath = `${next.pathname}${next.search}`;
+    if (currentPath === nextPath) {
+      if (replace) history.replaceState(null, "", nextPath);
+      render();
+      return;
+    }
+    if (replace) history.replaceState(null, "", nextPath);
+    else history.pushState(null, "", nextPath);
+    if (!focusTopicAfterRender) {
+      focusMainAfterRender = true;
+      if (currentPath !== nextPath) scrollToTopAfterRender = true;
+    }
+    render();
   };
-  const roadmapHref = (roadmap, topicId) => `#/roadmap/${encodeURIComponent(roadmap.id)}${topicId ? `?topic=${encodeURIComponent(topicId)}` : ""}`;
-  const learningHref = (roadmap, topicId) => `#/learn/${encodeURIComponent(roadmap.id)}?topic=${encodeURIComponent(topicId)}`;
+  const roadmapHref = (roadmap, topicId) => `/roadmaps/${encodeURIComponent(roadmap.id)}/${topicId ? `?topic=${encodeURIComponent(topicId)}` : ""}`;
+  const learningHref = (roadmap, topicId, conceptId = "") => `/learn/${encodeURIComponent(roadmap.id)}/${encodeURIComponent(topicId)}/${conceptId ? `?concept=${encodeURIComponent(conceptId)}` : ""}`;
   const conceptIdFor = (topic, index) => topic.subtopics?.[index]?.id || `${topic.id}-concept-${index + 1}`;
-  const conceptHref = (roadmap, topic, conceptId) => `#/learn/${encodeURIComponent(roadmap.id)}?topic=${encodeURIComponent(topic.id)}&concept=${encodeURIComponent(conceptId)}`;
+  const conceptHref = (roadmap, topic, conceptId) => learningHref(roadmap, topic.id, conceptId);
   const localizedIn = (value, language) => typeof value === "string" ? value : value?.[language] ?? value?.en ?? "";
   const topicOverviewText = (roadmap, module, topic, language = state.language) => {
     const saved = localizedIn(topic.overview, language).trim();
@@ -491,13 +512,13 @@
       ? `يرتبط مفهوم «${title}» بموضوع «${topicTitle}» ضمن «${moduleTitle}». اقرأ عنه، وابحث في المصادر المقترحة، ثم دوّن مثالاً يوضح استخدامه.`
       : `“${title}” is one of the concepts within “${topicTitle}” in ${moduleTitle}. Explore the suggested sources and note an example of how it is used.`;
   };
-  const categoryHref = (category) => `#/paths${category && category !== "all" ? `?category=${encodeURIComponent(category)}` : ""}`;
+  const categoryHref = (category) => `/paths/${category && category !== "all" ? `?category=${encodeURIComponent(category)}` : ""}`;
   const librarySearchHref = (category, query) => {
     const params = new URLSearchParams();
     if (category && category !== "all") params.set("category", category);
     if (query) params.set("q", query);
     const queryString = params.toString();
-    return `#/paths${queryString ? `?${queryString}` : ""}`;
+    return `/paths/${queryString ? `?${queryString}` : ""}`;
   };
   const findCategoryCounts = () => Object.fromEntries(CATEGORIES.map((category) => [category, roadmaps.filter((roadmap) => roadmap.category === category).length]));
   const statusTag = (roadmap) => {
@@ -522,12 +543,17 @@
   };
   const roadmapCard = (roadmap, options = {}) => {
     const progress = roadmapProgress(roadmap);
+    const lessonCount = topicList(roadmap).length;
+    const studyMinutes = lessonCount * 15;
+    const studyTime = studyMinutes < 60
+      ? `${formatNumber(studyMinutes)} ${tr("minutesShort")}`
+      : `${formatNumber(Math.ceil(studyMinutes / 60))} ${tr("hoursShort")}`;
     const saved = state.favorites.includes(roadmap.id);
     const status = statusTag(roadmap);
     const cardClass = options.featured ? "roadmap-card roadmap-card-featured" : "roadmap-card";
     return `<article class="${cardClass}">
       <div class="roadmap-card-top"><span class="roadmap-card-icon">${icon(options.icon || "layers")}</span><button class="bookmark-button ${saved ? "is-saved" : ""}" type="button" data-action="toggle-save" data-roadmap="${escapeHtml(roadmap.id)}" aria-label="${escapeHtml(saved ? tr("removeSaved") : tr("saveRoadmap"))}" aria-pressed="${saved}">${icon("bookmark")}</button></div>
-      <a class="roadmap-card-link" href="${roadmapHref(roadmap)}"><span class="eyebrow">${escapeHtml(categoryName(roadmap.category))}</span><h3>${escapeHtml(localized(roadmap.title))}</h3><p>${escapeHtml(localized(roadmap.summary))}</p><span class="roadmap-card-meta">${status}<span>${formatNumber(progress.total)} ${escapeHtml(tr("learningSteps"))}</span></span>${progress.done || progress.skipped || progress.learning ? progressMarkup(roadmap, true) : ""}<span class="card-action">${escapeHtml(progress.done || progress.learning || progress.skipped ? tr("continueRoadmap") : tr("openRoadmap"))}${icon("arrow")}</span></a>
+      <a class="roadmap-card-link" href="${roadmapHref(roadmap)}"><span class="eyebrow">${escapeHtml(categoryName(roadmap.category))}</span><h3>${escapeHtml(localized(roadmap.title))}</h3><p>${escapeHtml(localized(roadmap.summary))}</p><span class="roadmap-card-meta">${status}<span class="roadmap-card-facts">${formatNumber(lessonCount)} ${escapeHtml(tr("learningSteps"))}<span aria-hidden="true">·</span>≈ ${escapeHtml(studyTime)}</span></span>${progress.done || progress.skipped || progress.learning ? progressMarkup(roadmap, true) : ""}<span class="card-action">${escapeHtml(progress.done || progress.learning || progress.skipped ? tr("continueRoadmap") : tr("openRoadmap"))}${icon("arrow")}</span></a>
     </article>`;
   };
   const sectionHeading = (title, description = "", href = "") => `<div class="section-heading"><div><h2>${escapeHtml(title)}</h2>${description ? `<p>${escapeHtml(description)}</p>` : ""}</div>${href ? `<a class="text-link" href="${href}">${escapeHtml(tr("browseAll"))}${icon("arrow")}</a>` : ""}</div>`;
@@ -536,9 +562,8 @@
     const popular = topRoadmaps.slice(0, 6);
     const counts = findCategoryCounts();
     root.innerHTML = `<section class="catalog-hero">
-        <div class="hero-copy"><span class="eyebrow hero-eyebrow">${icon("spark")}${escapeHtml(tr("homeEyebrow"))}</span><h1>${escapeHtml(tr("homeTitle"))}</h1><p>${escapeHtml(tr("homeIntro"))}</p>
-          <button class="hero-search" type="button" data-action="focus-search">${icon("search")}<span>${escapeHtml(tr("searchPlaceholder"))}</span><kbd>${state.language === "ar" ? "بحث" : "Ctrl K"}</kbd></button>
-          <div class="hero-actions"><a class="button button-primary" href="${categoryHref("all")}">${escapeHtml(tr("browseAll"))}${icon("arrow")}</a><a class="button button-ghost" href="#/learning">${escapeHtml(tr("navLearning"))}</a></div>
+      <div class="hero-copy"><span class="eyebrow hero-eyebrow">${icon("spark")}${escapeHtml(tr("homeEyebrow"))}</span><h1>${escapeHtml(tr("homeTitle"))}</h1><p>${escapeHtml(tr("homeIntro"))}</p>
+          <div class="hero-actions"><a class="button button-primary" href="${categoryHref("all")}">${escapeHtml(tr("startLearning"))}${icon("arrow")}</a></div>
         </div><div class="hero-visual" aria-hidden="true"><svg class="hero-lines" viewBox="0 0 500 360" preserveAspectRatio="none"><path d="M248 25v70M248 100C248 150 90 130 90 215M248 100c0 50 160 30 160 115M90 220v95M408 220v95M90 262h160M408 262H250"/><path d="M248 25v70" class="hero-line-strong"/></svg><span class="hero-node hero-node-main">${icon("layers")}<span>${escapeHtml(tr("homeMapRoot"))}</span></span><span class="hero-node hero-node-left">${escapeHtml(tr("categoryNames").business)}</span><span class="hero-node hero-node-right">${escapeHtml(tr("categoryNames").data)}</span><span class="hero-node hero-node-bottom hero-node-left-bottom">${escapeHtml(tr("categoryNames").accounting)}</span><span class="hero-node hero-node-bottom hero-node-right-bottom">${escapeHtml(tr("categoryNames").systems)}</span></div>
       </section>
       <section class="category-strip"><div class="section-heading"><div><h2>${escapeHtml(tr("categories"))}</h2><p>${escapeHtml(tr("categoryIntro"))}</p></div><a class="text-link" href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}${icon("arrow")}</a></div><div class="category-chips">${CATEGORIES.map((category) => `<a class="category-chip" href="${categoryHref(category)}"><span>${icon("category")}</span><span>${escapeHtml(categoryName(category))}</span><small>${formatNumber(counts[category])}</small></a>`).join("")}</div></section>
@@ -562,16 +587,20 @@
     const description = mode === "learning" ? tr("learningIntro") : mode === "saved" ? tr("savedIntro") : tr("libraryIntro");
     const counts = findCategoryCounts();
     const hasRoadmaps = list.length > 0;
-    const noItems = mode === "saved" ? tr("noSaved") : mode === "learning" ? tr("noLearning") : tr("noResults");
+    const noItems = mode === "saved" ? tr("emptySavedTitle") : mode === "learning" ? tr("emptyLearningTitle") : tr("noResults");
+    const emptyCopy = mode === "saved" ? tr("emptySavedCopy") : tr("emptyLearningCopy");
+    const emptyHref = mode === "learning" ? roadmapHref(byId.get(featured[0])) : categoryHref("all");
+    const emptyAction = mode === "learning" ? tr("startFirstRoadmap") : tr("browseAll");
     root.innerHTML = `<header class="page-header"><div class="page-header-copy"><span class="eyebrow">${escapeHtml(mode === "all" ? tr("categories") : tr("yourSpace"))}</span><h1>${escapeHtml(heading)}</h1><p>${escapeHtml(description)}</p></div>${mode === "learning" && state.started.length ? `<button class="button button-secondary" type="button" data-action="reset-progress">${icon("reset")}${escapeHtml(tr("resetProgress"))}</button>` : ""}</header>
       <div class="library-layout"><aside class="category-rail" aria-label="${escapeHtml(tr("categories"))}"><h2>${escapeHtml(tr("categories"))}</h2><a class="category-link ${selectedCategory === "all" ? "is-active" : ""}" href="${categoryHref("all")}"><span>${escapeHtml(tr("allCategories"))}</span><b>${formatNumber(mode === "all" ? roadmaps.length : list.length)}</b></a>${CATEGORIES.map((category) => `<a class="category-link ${selectedCategory === category ? "is-active" : ""}" href="${categoryHref(category)}"><span>${escapeHtml(categoryName(category))}</span><b>${formatNumber(mode === "all" ? counts[category] : (list.filter((roadmap) => roadmap.category === category).length))}</b></a>`).join("")}</aside>
-        <section class="library-results" aria-label="${escapeHtml(heading)}"><div class="results-toolbar"><span>${formatNumber(list.length)} ${escapeHtml(tr("results"))}</span>${rawQuery ? `<span class="query-chip">${icon("search")}${escapeHtml(rawQuery)}<a href="${categoryHref(selectedCategory)}" aria-label="${escapeHtml(tr("clearSearch"))}">×</a></span>` : ""}</div>${rawQuery && queryResolution.changed ? `<button type="button" class="search-correction library-search-correction" data-action="apply-library-search-suggestion" data-query="${escapeHtml(query)}" data-category="${escapeHtml(selectedCategory)}">${icon("search")}<span>${escapeHtml(tr("didYouMean"))} <strong dir="auto">${escapeHtml(queryResolution.suggestion)}</strong>?</span></button>` : ""}${hasRoadmaps ? `<div class="roadmap-grid">${list.map((roadmap) => roadmapCard(roadmap)).join("")}</div>` : `<div class="empty-state">${icon(mode === "saved" ? "bookmark" : mode === "learning" ? "play" : "search")}<h2>${escapeHtml(noItems)}</h2>${mode === "saved" || mode === "learning" ? `<a class="button button-primary" href="${categoryHref("all")}">${escapeHtml(tr("browseAll"))}${icon("arrow")}</a>` : ""}</div>`}</section>
+        <section class="library-results" aria-label="${escapeHtml(heading)}"><div class="results-toolbar"><span>${formatNumber(list.length)} ${escapeHtml(tr("results"))}</span>${rawQuery ? `<span class="query-chip">${icon("search")}${escapeHtml(rawQuery)}<a href="${categoryHref(selectedCategory)}" aria-label="${escapeHtml(tr("clearSearch"))}">×</a></span>` : ""}</div>${rawQuery && queryResolution.changed ? `<button type="button" class="search-correction library-search-correction" data-action="apply-library-search-suggestion" data-query="${escapeHtml(query)}" data-category="${escapeHtml(selectedCategory)}">${icon("search")}<span>${escapeHtml(tr("didYouMean"))} <strong dir="auto">${escapeHtml(queryResolution.suggestion)}</strong>?</span></button>` : ""}${hasRoadmaps ? `<div class="roadmap-grid">${list.map((roadmap) => roadmapCard(roadmap)).join("")}</div>` : `<div class="empty-state">${icon(mode === "saved" ? "bookmark" : mode === "learning" ? "play" : "search")}<h2>${escapeHtml(noItems)}</h2>${mode === "saved" || mode === "learning" ? `<p>${escapeHtml(emptyCopy)}</p><a class="button button-primary" href="${emptyHref}">${escapeHtml(emptyAction)}${icon("arrow")}</a>` : ""}</div>`}</section>
       </div>`;
   };
   const renderLearningPage = (roadmap, selected, conceptId = "") => {
     const { topic, module } = selected;
     const conceptIndex = (topic.subtopics || []).findIndex((item, index) => conceptIdFor(topic, index) === conceptId);
     const selectedConcept = conceptIndex >= 0 ? topic.subtopics[conceptIndex] : null;
+    const activeConceptId = selectedConcept ? conceptId : "";
     const title = localized(selectedConcept || topic.title);
     const topicTitle = localized(topic.title);
     const moduleTitle = localized(module.title);
@@ -579,6 +608,16 @@
     const moduleIndex = roadmap.modules.indexOf(module);
     const topicIndex = module.topics.indexOf(topic);
     const microTopics = topic.subtopics || [];
+    const lessonSteps = topicList(roadmap).flatMap((entry) => [
+      { topic: entry.topic, conceptId: "" },
+      ...(entry.topic.subtopics || []).map((item, index) => ({ topic: entry.topic, conceptId: conceptIdFor(entry.topic, index) }))
+    ]);
+    const lessonStepIndex = lessonSteps.findIndex((step) => step.topic.id === topic.id && step.conceptId === activeConceptId);
+    const previousStep = lessonSteps[lessonStepIndex - 1];
+    const nextStep = lessonSteps[lessonStepIndex + 1];
+    const currentStatus = topicStatus(roadmap, topic.id);
+    const completionAction = `<button class="button ${currentStatus === "done" ? "button-secondary" : "button-primary"} lesson-complete-button" type="button" data-action="set-topic-status" data-status="done" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-pressed="${currentStatus === "done"}">${icon(currentStatus === "done" ? "check" : "check")}<span>${escapeHtml(currentStatus === "done" ? tr("reopenLesson") : tr("markComplete"))}</span></button>`;
+    const lessonNavigation = `<nav class="lesson-navigation" aria-label="${escapeHtml(tr("lessonNavigation"))}">${previousStep ? `<a class="button button-secondary" rel="prev" href="${learningHref(roadmap, previousStep.topic.id, previousStep.conceptId)}">${icon("arrow")}<span>${escapeHtml(tr("previousLesson"))}</span></a>` : `<span aria-hidden="true"></span>`}${nextStep ? `<a class="button button-secondary" rel="next" href="${learningHref(roadmap, nextStep.topic.id, nextStep.conceptId)}"><span>${escapeHtml(tr("nextLesson"))}</span>${icon("arrow")}</a>` : `<span aria-hidden="true"></span>`}</nav>`;
     const topicOverview = topicOverviewText(roadmap, module, topic);
     const conceptOverview = conceptOverviewText(roadmap, module, topic, selectedConcept);
     const overview = selectedConcept ? conceptOverview : topicOverview;
@@ -589,15 +628,15 @@
     return `<div class="learning-drawer-layer"><button class="learning-drawer-scrim" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}"></button><aside class="learning-drawer" role="dialog" aria-modal="true" aria-labelledby="selectedTopicTitle"><div class="learning-page">
       <header class="learning-page-toolbar"><div class="learning-page-status">${topicStatusControls(roadmap, topic)}</div><div class="learning-toolbar-actions">${canEditContent() ? `<button class="learning-edit-trigger" type="button" data-action="edit-current-learning-item" aria-label="${escapeHtml(at("editContent"))}" title="${escapeHtml(at("editContent"))}">${icon("edit")}<span>${escapeHtml(at("editContent"))}</span></button>` : ""}<button class="panel-close" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}">${icon("close")}</button></div></header>
       <div class="learning-page-progress">${progressMarkup(roadmap, true)}</div>
-      <main class="learning-panel learning-page-content" id="learningPanel" aria-labelledby="selectedTopicTitle">
+      <article class="learning-panel learning-page-content" id="learningPanel" aria-labelledby="selectedTopicTitle">
         <nav class="breadcrumbs learning-breadcrumbs" aria-label="${escapeHtml(tr("breadcrumbs"))}"><a href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}</a><span aria-hidden="true">/</span><a href="${categoryHref(roadmap.category)}">${escapeHtml(categoryName(roadmap.category))}</a><span aria-hidden="true">/</span><a href="${backHref}">${escapeHtml(roadmapTitle)}</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(selectedConcept ? `${topicTitle} / ${title}` : title)}</span></nav>
-        <header class="learning-topic-hero"><div class="learning-topic-heading"><div class="detail-context"><span>${escapeHtml(roadmapTitle)}</span><span aria-hidden="true">/</span><span>${escapeHtml(moduleTitle)}</span></div><span class="learning-topic-kicker">${escapeHtml(selectedConcept ? at("editConcept") : tr("selected"))}</span></div><h1 id="selectedTopicTitle">${escapeHtml(title)}</h1><p>${escapeHtml(overview)}</p></header>
-        <div class="learning-content-grid"><div class="learning-content-primary">
+        <header class="learning-topic-hero" id="lesson-overview"><div class="learning-topic-heading"><div class="detail-context"><span>${escapeHtml(roadmapTitle)}</span><span aria-hidden="true">/</span><span>${escapeHtml(moduleTitle)}</span></div><span class="learning-topic-kicker">${escapeHtml(selectedConcept ? at("editConcept") : tr("selected"))}</span></div><h1 id="selectedTopicTitle">${escapeHtml(title)}</h1><p>${escapeHtml(overview)}</p>${completionAction}</header>
+        <div class="learning-content-grid"><aside class="learning-toc"><section class="learning-card"><h2>${escapeHtml(tr("lessonContents"))}</h2><nav aria-label="${escapeHtml(tr("lessonContents"))}"><a href="#lesson-overview">${escapeHtml(tr("lessonOverview"))}</a><a href="#lesson-concepts">${escapeHtml(tr("whatToLearn"))}</a><a href="#lesson-practice">${escapeHtml(tr("practice"))}</a><a href="#lesson-resources">${escapeHtml(tr("resources"))}</a></nav></section></aside><div class="learning-content-primary">
           ${selectedConcept ? `<section class="learning-card"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(topicTitle)}</h2><p>${escapeHtml(moduleTitle)}</p></div></div><a class="button button-secondary" href="${learningHref(roadmap, topic.id)}">${escapeHtml(at("backToParent"))}${icon("arrow")}</a></section>` : ""}
-          <section class="learning-card learning-concepts"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(tr("whatToLearn"))}</h2><p>${escapeHtml(tr("learnNote"))}</p></div></div><div class="concept-grid">${microTopics.map((subtopic, index) => `<a class="concept-card ${conceptId === conceptIdFor(topic, index) ? "is-current" : ""}" href="${conceptHref(roadmap, topic, conceptIdFor(topic, index))}" data-action="open-learning-concept" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${topicIndex}" data-concept="${index}" aria-current="${conceptId === conceptIdFor(topic, index) ? "page" : "false"}"><span class="concept-card-icon">${icon("search")}</span><span dir="auto">${escapeHtml(localized(subtopic))}</span>${icon("arrow")}</a>`).join("")}</div></section>
-          <section class="learning-card practice-card"><div class="learning-card-heading"><span class="learning-card-icon">${icon("check")}</span><div><h2>${escapeHtml(tr("practice"))}</h2><p>${escapeHtml(tr("practiceNote"))}</p></div></div><div class="practice-output"><span class="practice-output-icon">${icon("check")}</span><div><strong>${escapeHtml(tr("checkpointOutput"))}</strong><span>${escapeHtml(tr("checkpointOutputNote"))}</span></div></div></section>
-        </div><aside class="learning-content-aside"><section class="learning-card learning-resources"><div class="learning-card-heading"><span class="learning-card-icon">${icon("layers")}</span><div><h2>${escapeHtml(tr("resources"))}</h2><p>${escapeHtml(tr("searchNote"))}</p></div></div><div class="resource-links">${customResources.map((resource) => `<a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(localized(resource.title) || resource.url)}</span>${icon("arrow")}</a>`).join("")}<a href="${resourceUrl("official", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchOfficial"))}</span>${icon("arrow")}</a><a href="${resourceUrl("articles", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchArticles"))}</span>${icon("arrow")}</a><a href="${resourceUrl("videos", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>${escapeHtml(tr("searchVideos"))}</span>${icon("arrow")}</a><a href="${resourceUrl("academic", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("chart")}<span>${escapeHtml(tr("searchAcademic"))}</span>${icon("arrow")}</a><button type="button" data-action="copy-prompt" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}">${icon("spark")}<span>${escapeHtml(tr("studyPrompt"))}</span>${icon("arrow")}</button></div></section></aside></div>
-        <p class="detail-footnote">${escapeHtml(tr("selfPacedNote"))}</p></main></div></aside></div>`;
+          <section class="learning-card learning-concepts" id="lesson-concepts"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(tr("whatToLearn"))}</h2><p>${escapeHtml(tr("learnNote"))}</p></div></div><div class="concept-grid">${microTopics.map((subtopic, index) => `<a class="concept-card ${conceptId === conceptIdFor(topic, index) ? "is-current" : ""}" href="${conceptHref(roadmap, topic, conceptIdFor(topic, index))}" data-action="open-learning-concept" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${topicIndex}" data-concept="${index}" aria-current="${conceptId === conceptIdFor(topic, index) ? "page" : "false"}"><span class="concept-card-icon">${icon("search")}</span><span dir="auto">${escapeHtml(localized(subtopic))}</span>${icon("arrow")}</a>`).join("")}</div></section>
+          <section class="learning-card practice-card" id="lesson-practice"><div class="learning-card-heading"><span class="learning-card-icon">${icon("check")}</span><div><h2>${escapeHtml(tr("practice"))}</h2><p>${escapeHtml(tr("practiceNote"))}</p></div></div><div class="practice-output"><span class="practice-output-icon">${icon("check")}</span><div><strong>${escapeHtml(tr("checkpointOutput"))}</strong><span>${escapeHtml(tr("checkpointOutputNote"))}</span></div></div></section>
+        </div><aside class="learning-content-aside"><section class="learning-card learning-resources" id="lesson-resources"><div class="learning-card-heading"><span class="learning-card-icon">${icon("layers")}</span><div><h2>${escapeHtml(tr("resources"))}</h2><p>${escapeHtml(tr("searchNote"))}</p></div></div><div class="resource-links">${customResources.map((resource) => `<a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(localized(resource.title) || resource.url)}</span>${icon("arrow")}</a>`).join("")}<a href="${resourceUrl("official", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchOfficial"))}</span>${icon("arrow")}</a><a href="${resourceUrl("articles", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchArticles"))}</span>${icon("arrow")}</a><a href="${resourceUrl("videos", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>${escapeHtml(tr("searchVideos"))}</span>${icon("arrow")}</a><a href="${resourceUrl("academic", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("chart")}<span>${escapeHtml(tr("searchAcademic"))}</span>${icon("arrow")}</a><button type="button" data-action="copy-prompt" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}">${icon("spark")}<span>${escapeHtml(tr("studyPrompt"))}</span>${icon("arrow")}</button></div></section></aside></div>
+        ${lessonNavigation}<p class="detail-footnote">${escapeHtml(tr("selfPacedNote"))}</p></article></div></aside></div>`;
   };
   const adminCopy = {
     en: {
@@ -897,19 +936,106 @@
     return `https://www.google.com/search?q=${value}&hl=${locale}`;
   };
   const parseRoute = () => {
-    const raw = location.hash.replace(/^#/, "") || "/home";
-    const separator = raw.indexOf("?");
-    const path = (separator < 0 ? raw : raw.slice(0, separator)).replace(/^\/+/, "");
-    const params = new URLSearchParams(separator < 0 ? "" : raw.slice(separator + 1));
-    const segments = path.split("/").filter(Boolean).map(decodeURIComponent);
-    return { page: segments[0] || "home", id: segments[1] || "", params };
+    const legacy = location.hash.startsWith("#/");
+    const rawPath = legacy ? location.hash.slice(1).split("?")[0] : location.pathname;
+    const rawQuery = legacy ? location.hash.split("?").slice(1).join("?") : location.search;
+    const segments = rawPath.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment));
+    const params = new URLSearchParams(rawQuery);
+    let page = segments[0] || "home";
+    const id = segments[1] || "";
+    if (page === "roadmaps" || page === "roadmap") page = "roadmap";
+    if (page === "learn") {
+      if (segments[2]) params.set("topic", segments[2]);
+      if (segments[3]) params.set("concept", segments[3]);
+    }
+    return { page, id, params, segments };
+  };
+  const normalizeLegacyRoute = () => {
+    if (!location.hash.startsWith("#/")) return;
+    const [rawPath, ...queryParts] = location.hash.slice(2).split("?");
+    const query = new URLSearchParams(queryParts.join("?"));
+    const segments = rawPath.split("/").filter(Boolean).map((segment) => decodeURIComponent(segment));
+    const [oldPage = "home", id = "", topicSegment = ""] = segments;
+    let pathname = "/";
+    if (oldPage === "roadmap") pathname = `/roadmaps/${encodeURIComponent(id)}/`;
+    else if (oldPage === "learn") {
+      const topicId = query.get("topic") || topicSegment;
+      pathname = `/learn/${encodeURIComponent(id)}/${encodeURIComponent(topicId || "")}/`;
+      query.delete("topic");
+    } else if (oldPage !== "home") {
+      pathname = `/${[oldPage, ...segments.slice(1)].map(encodeURIComponent).join("/")}/`;
+    }
+    const search = query.toString();
+    history.replaceState(null, "", `${pathname}${search ? `?${search}` : ""}`);
   };
   const renderLogin = (next = "") => {
     const signedIn = contentStore.user;
     const continueToAdmin = next === "admin" && signedIn && contentStore.isEditor(signedIn);
-    const continueHref = continueToAdmin ? "#/admin" : "#/paths";
+    const continueHref = continueToAdmin ? "/admin/" : "/paths/";
     const accountLine = signedIn ? `<p class="auth-account-line">${escapeHtml(signedIn.email || tr("account"))}</p><a class="button button-primary auth-continue" href="${continueHref}">${escapeHtml(tr("authContinue"))}${icon("arrow")}</a>` : `<button class="auth-google-button" type="button" data-action="google-sign-in" ${contentStore.configured ? "" : "disabled"}><svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.7-.4-4H24v7.6h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.6 6.1-8.8 6.1-14.8Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.6-5c-1.8 1.2-4 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.2C9.2 39.6 16 44 24 44Z"/><path fill="#FBBC05" d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18Z"/><path fill="#EA4335" d="M24 11.8c3 0 5.6 1 7.7 3l5.8-5.8C34 5.6 29.5 4 24 4 16 4 9.2 8.4 5.8 15l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4Z"/></svg><span>${escapeHtml(tr("authGoogle"))}</span>${icon("arrow")}</button>`;
     root.innerHTML = `<section class="auth-page"><div class="auth-card"><span class="auth-emblem" aria-hidden="true">${icon("layers")}</span><span class="eyebrow">${escapeHtml(tr("brand"))}</span><h1>${escapeHtml(tr("authTitle"))}</h1><p class="auth-intro">${escapeHtml(tr("authIntro"))}</p>${signedIn ? accountLine : `<div class="auth-provider">${accountLine}${!contentStore.configured ? `<p class="auth-unavailable">${escapeHtml(tr("authUnavailable"))}</p>` : ""}</div>`}<p class="auth-footnote">${escapeHtml(signedIn ? tr("authSignedInNote") : tr("authNote"))}</p></div></section>`;
+  };
+  const updatePageMetadata = (route) => {
+    const roadmap = byId.get(route.id);
+    const selected = roadmap && topicList(roadmap).find(({ topic }) => topic.id === route.params.get("topic"));
+    let title = tr("pageTitle");
+    let description = tr("metaDescription");
+    let indexable = ["home", "paths", "roadmap", "learn"].includes(route.page);
+    if (route.page === "roadmap" && roadmap) {
+      title = `${localized(roadmap.title)} | ${tr("appName")}`;
+      description = localized(roadmap.summary) || tr("libraryIntro");
+    } else if (route.page === "learn" && roadmap && selected) {
+      const conceptId = route.params.get("concept");
+      const conceptIndex = (selected.topic.subtopics || []).findIndex((item, index) => conceptIdFor(selected.topic, index) === conceptId);
+      const concept = conceptIndex >= 0 ? selected.topic.subtopics[conceptIndex] : null;
+      title = `${localized(concept || selected.topic.title)} | ${localized(roadmap.title)}`;
+      description = concept
+        ? conceptOverviewText(roadmap, selected.module, selected.topic, concept)
+        : topicOverviewText(roadmap, selected.module, selected.topic);
+    } else if (route.page === "paths") {
+      title = tr("allRoadmaps");
+      description = tr("libraryIntro");
+      if (route.params.has("q") || route.params.has("category")) indexable = false;
+    } else if (route.page === "learning") {
+      title = tr("learningTitle");
+      description = tr("learningIntro");
+    } else if (route.page === "saved") {
+      title = tr("savedRoadmaps");
+      description = tr("savedIntro");
+    } else if (route.page === "login") {
+      title = tr("authTitle");
+      description = tr("authIntro");
+    } else if (route.page === "admin") {
+      title = tr("navAdmin");
+      description = tr("sourceNote");
+    } else if (route.page !== "home") {
+      title = tr("pageNotFound");
+      description = tr("pageNotFoundCopy");
+      indexable = false;
+    }
+    description = String(description || tr("metaDescription")).replace(/\s+/g, " ").trim();
+    if (description.length > 160) description = `${description.slice(0, 157).trimEnd()}…`;
+    const canonicalPath = location.pathname.endsWith("/") || location.pathname === "/" ? location.pathname : `${location.pathname}/`;
+    const canonicalQuery = route.page === "learn" && route.params.has("concept")
+      ? `?concept=${encodeURIComponent(route.params.get("concept"))}`
+      : "";
+    const canonical = `${location.origin}${canonicalPath}${canonicalQuery}`;
+    const setContent = (selector, value) => {
+      const element = document.querySelector(selector);
+      if (element) element.setAttribute("content", value);
+    };
+    document.title = title;
+    setContent("meta[name='description']", description);
+    setContent("meta[name='robots']", indexable ? "index,follow" : "noindex,nofollow");
+    setContent("meta[property='og:site_name']", tr("appName"));
+    setContent("meta[property='og:title']", title);
+    setContent("meta[property='og:description']", description);
+    setContent("meta[property='og:url']", canonical);
+    setContent("meta[property='og:locale']", state.language === "ar" ? "ar_EG" : "en_US");
+    setContent("meta[name='twitter:title']", title);
+    setContent("meta[name='twitter:description']", description);
+    const canonicalLink = document.querySelector("link[rel='canonical']");
+    if (canonicalLink) canonicalLink.href = canonical;
   };
   const render = () => {
     const previousContentDialog = root.querySelector("#contentEditDialog");
@@ -933,13 +1059,13 @@
     if (route.page === "roadmap") {
       const roadmap = byId.get(route.id);
       if (roadmap) renderRoadmap(roadmap, route.params);
-      else { setHash("#/paths", true); return; }
+      else { setRoute("/paths/", true); return; }
     } else if (route.page === "learn") {
       const roadmap = byId.get(route.id);
       const selected = roadmap ? topicList(roadmap).find(({ topic }) => topic.id === route.params.get("topic")) : null;
       if (roadmap && selected) renderRoadmap(roadmap, route.params, selected);
-      else if (roadmap) { setHash(roadmapHref(roadmap), true); return; }
-      else { setHash("#/paths", true); return; }
+      else if (roadmap) { setRoute(roadmapHref(roadmap), true); return; }
+      else { setRoute("/paths/", true); return; }
     } else if (route.page === "paths") {
       renderLibrary(route.params, "all");
     } else if (route.page === "learning") {
@@ -947,11 +1073,22 @@
     } else if (route.page === "saved") {
       renderLibrary(route.params, "saved");
     } else if (route.page === "admin") {
+      if (!authReady) {
+        root.setAttribute("aria-busy", "true");
+        updatePageMetadata(route);
+        return;
+      }
+      if (!contentStore.isEditor(contentStore.user)) {
+        setRoute(contentStore.user ? "/" : "/login/?next=admin", true);
+        return;
+      }
       renderAdmin(route.id);
     } else if (route.page === "login") {
       renderLogin(route.params.get("next") || "");
-    } else {
+    } else if (route.page === "home") {
       renderHome();
+    } else {
+      root.innerHTML = `<section class="empty-state page-not-found"><span class="eyebrow">404</span><h1>${escapeHtml(tr("pageNotFound"))}</h1><p>${escapeHtml(tr("pageNotFoundCopy"))}</p><div><a class="button button-primary" href="/">${escapeHtml(tr("goHome"))}</a><a class="button button-secondary" href="/paths/">${escapeHtml(tr("allRoadmaps"))}</a></div></section>`;
     }
     const learningDrawer = root.querySelector(".learning-drawer");
     if (learningDrawer && hadLearningDrawer) learningDrawer.scrollTop = learningDrawerScrollTop;
@@ -978,14 +1115,20 @@
       }
     }
     syncNavigation();
+    root.setAttribute("aria-busy", "false");
+    updatePageMetadata(route);
     if (searchInput.value && document.activeElement === searchInput) updateSearchResults(searchInput.value);
     else closeSearchResults();
     if (focusTopicAfterRender) {
       const heading = document.getElementById("selectedTopicTitle");
       const fallback = document.querySelector(".learning-drawer .learning-page-status .topic-status-control, .topic-item.is-selected .topic-node, .topic-item.is-selected .topic-status-control");
-      const target = heading || fallback;
+      const target = route.page === "learn" ? root.querySelector(".lesson-complete-button") : heading || fallback;
       if (target) { target.setAttribute("tabindex", "-1"); target.focus(); }
       focusTopicAfterRender = false;
+    } else if (focusMainAfterRender) {
+      const heading = root.querySelector("h1");
+      if (heading) { heading.setAttribute("tabindex", "-1"); heading.focus(); }
+      focusMainAfterRender = false;
     }
     if (scrollToTopAfterRender) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1002,7 +1145,7 @@
     catch { showToast(tr("signOutError")); }
   };
   const adminLogin = async () => {
-    location.hash = "#/login?next=admin";
+    setRoute("/login/?next=admin");
   };
   const adminSave = async () => {
     const englishTitle = adminDraft?.title?.en?.trim();
@@ -1028,7 +1171,7 @@
     try {
       await contentStore.save(adminDraft);
       sessionStorage.setItem("atlas-admin-notice", at("saved"));
-      window.history.replaceState(null, "", `#/admin/${encodeURIComponent(adminDraft.id)}`);
+      window.history.replaceState(null, "", `/admin/${encodeURIComponent(adminDraft.id)}/`);
       window.location.reload();
     } catch (error) {
       adminNotice = error.message || String(error);
@@ -1043,7 +1186,7 @@
     try {
       await contentStore.remove(adminDraft.id);
       sessionStorage.setItem("atlas-admin-notice", state.language === "ar" ? "تم حذف المسار من الموقع." : "The roadmap was removed from the site.");
-      window.location.hash = "#/admin";
+      window.history.replaceState(null, "", "/admin/");
       window.location.reload();
     } catch (error) {
       adminNotice = error.message || String(error);
@@ -1223,7 +1366,7 @@
     adminModuleIndex = 0;
     adminTopicIndex = 0;
     adminNotice = "";
-    location.hash = "#/admin/new";
+    setRoute("/admin/new/");
   };
   const adminAddModule = () => {
     const modules = adminDraft.modules || (adminDraft.modules = []);
@@ -1343,7 +1486,7 @@
     persist();
     const route = parseRoute();
     if (route.page === "login") {
-      location.hash = route.params.get("next") === "admin" && contentStore.isEditor(user) ? "#/admin" : "#/paths";
+      setRoute(route.params.get("next") === "admin" && contentStore.isEditor(user) ? "/admin/" : "/paths/", true);
       return;
     }
     render();
@@ -1386,7 +1529,7 @@
       searchInput.select();
       return;
     }
-    if (option?.getAttribute("href")) { location.hash = option.getAttribute("href"); closeSearchResults(); searchInput.blur(); }
+    if (option?.getAttribute("href")) { setRoute(option.getAttribute("href")); closeSearchResults(); searchInput.blur(); }
   };
   const showToast = (message) => {
     window.clearTimeout(toastTimer);
@@ -1464,13 +1607,15 @@
     focusTopicAfterRender = true;
     if (nextStatus === "learning") {
       const target = learningHref(roadmap, topicId);
-      if (location.hash === target) setHash(target, true);
-      else location.hash = target;
+      if (`${location.pathname}${location.search}` === target) setRoute(target, true);
+      else setRoute(target);
       return;
     }
     const mapTarget = roadmapHref(roadmap, topicId);
-    if (location.hash.startsWith(`#/learn/${encodeURIComponent(roadmap.id)}`)) location.hash = mapTarget;
-    else setHash(mapTarget, true);
+    if (parseRoute().page === "learn") {
+      if (nextStatus === "learning") setRoute(learningHref(roadmap, topicId));
+      else setRoute(`${location.pathname}${location.search}`, true);
+    } else setRoute(mapTarget, true);
   };
   const resetProgress = () => {
     if (!window.confirm(tr(contentStore.user ? "resetConfirmAccount" : "resetConfirm"))) return;
@@ -1535,7 +1680,7 @@
     if (name === "account-toggle") {
       event.preventDefault();
       if (!contentStore.user) {
-        location.hash = "#/login";
+        setRoute("/login/");
       } else {
         const popover = document.getElementById("accountPopover");
         popover.hidden = !popover.hidden;
@@ -1603,7 +1748,7 @@
       inlineEditBaseline = "";
       adminDraft = null;
       adminSelectedId = "";
-      if (roadmapId) location.hash = `#/admin/${encodeURIComponent(roadmapId)}`;
+      if (roadmapId) setRoute(`/admin/${encodeURIComponent(roadmapId)}/`);
       return;
     }
     if (name === "inline-add-subtopic") { event.preventDefault(); addInlineSubtopic(); return; }
@@ -1634,7 +1779,7 @@
       if (roadmap) {
         focusTopicAfterRender = false;
         scrollToTopAfterRender = true;
-        location.hash = roadmapHref(roadmap);
+        setRoute(roadmapHref(roadmap));
       }
     }
     if (name === "open-topic" || name === "open-module") {
@@ -1655,7 +1800,7 @@
       }
       if (roadmap && topicList(roadmap).some(({ topic }) => topic.id === topicId)) {
         focusTopicAfterRender = true;
-        setHash(roadmapHref(roadmap, topicId), true);
+        setRoute(roadmapHref(roadmap, topicId), true);
       }
     }
   if (name === "apply-search-suggestion") {
@@ -1667,10 +1812,10 @@
   }
     if (name === "apply-library-search-suggestion") {
       event.preventDefault();
-      location.hash = librarySearchHref(action.dataset.category, action.dataset.query);
+      setRoute(librarySearchHref(action.dataset.category, action.dataset.query));
     }
     if (name === "set-topic-status") { event.preventDefault(); setTopicStatus(action.dataset.roadmap, action.dataset.topic, action.dataset.status); }
-    if (name === "return-to-map") { event.preventDefault(); focusTopicAfterRender = true; location.hash = roadmapHref(byId.get(action.dataset.roadmap), action.dataset.topic); }
+    if (name === "return-to-map") { event.preventDefault(); focusTopicAfterRender = true; setRoute(roadmapHref(byId.get(action.dataset.roadmap), action.dataset.topic)); }
     if (name === "copy-prompt") { event.preventDefault(); copyStudyPrompt(action.dataset.roadmap, action.dataset.topic); }
     if (name === "reset-progress") { event.preventDefault(); resetProgress(); }
     if (name === "focus-search") { searchInput.focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -1710,6 +1855,17 @@
   });
 
   document.addEventListener("click", delegatedClick);
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest?.("a[href]");
+    if (!link || link.target || link.hasAttribute("download")) return;
+    const href = link.getAttribute("href") || "";
+    if (href.startsWith("#")) return;
+    const destination = new URL(link.href, location.href);
+    if (destination.origin !== location.origin || destination.hash) return;
+    event.preventDefault();
+    setRoute(`${destination.pathname}${destination.search}`);
+  });
   document.addEventListener("keydown", (event) => {
     const target = event.target.closest?.('[data-action="edit-selected-path"][role="button"]');
     if (target && (event.key === "Enter" || event.key === " ")) {
@@ -1759,7 +1915,7 @@
         adminModuleIndex = 0;
         adminTopicIndex = 0;
         adminNotice = "";
-        location.hash = `#/admin/${encodeURIComponent(id)}`;
+        setRoute(`/admin/${encodeURIComponent(id)}/`);
       }
       return;
     }
@@ -1799,7 +1955,7 @@
       if (roadmap) {
         event.preventDefault();
         focusTopicAfterRender = true;
-        location.hash = roadmapHref(roadmap, route.params.get("topic"));
+        setRoute(roadmapHref(roadmap, route.params.get("topic")));
       }
       return;
     }
@@ -1816,7 +1972,7 @@
       first.focus();
     }
   });
-  window.addEventListener("hashchange", render);
+  window.addEventListener("popstate", render);
   window.addEventListener("resize", drawMapConnectors);
   searchInput.addEventListener("input", () => updateSearchResults(searchInput.value));
   searchInput.addEventListener("keydown", (event) => {
@@ -1857,7 +2013,8 @@
   });
 
   setDocumentLanguage();
-  if (!location.hash) history.replaceState(null, "", "#/home");
+  normalizeLegacyRoute();
+  if (location.pathname === "/home" || location.pathname === "/home/") history.replaceState(null, "", "/");
   render();
   document.documentElement.classList.remove("app-hydrating");
   const adminToast = sessionStorage.getItem("atlas-admin-notice");
