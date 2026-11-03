@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/__/auth/:path*",
+      "destination": "https://yflb-atlas-content-261103.firebaseapp.com/__/auth/:path*"
+    }
+  ]
+}

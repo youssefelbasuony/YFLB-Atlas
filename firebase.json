@@ -5,6 +5,7 @@
         "oAuthBrandDisplayName": "YFLB Atlas",
         "supportEmail": "youssefelbasuony1@gmail.com",
         "authorizedRedirectUris": [
+          "https://yflb-atlas.vercel.app/__/auth/handler",
           "https://yflb-atlas-content-261103.firebaseapp.com/__/auth/handler",
           "http://localhost"
         ]
