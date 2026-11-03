@@ -130,6 +130,14 @@
   let inlineEditBusy = false;
   let inlineEditError = "";
   let inlineEditBaseline = "";
+  let inlineEditTarget = { kind: "path" };
+  let inlineEditConceptIndex = 0;
+  let adminEditMode = false;
+  let mobileStatusTopic = "";
+  let mobileStatusTimer = 0;
+  let mobilePointerStart = null;
+  let suppressLongPressClick = false;
+  let suppressLongPressTopic = "";
   let focusInlineEditorAfterRender = false;
 
   const tr = (key) => copy[state.language][key] ?? copy.en[key] ?? key;
@@ -274,6 +282,8 @@
     const badge = document.getElementById("accountAdminBadge");
     const indicator = document.getElementById("accountAdminIndicator");
     const note = document.getElementById("accountSyncNote");
+    const editModeButton = document.getElementById("adminEditModeButton");
+    const editModeLabel = document.getElementById("adminEditModeLabel");
     if (!button || !label || !popover || !email || !badge || !indicator || !note) return;
     label.textContent = user ? tr("account") : tr("signIn");
     button.setAttribute("aria-label", user ? tr("account") : tr("signIn"));
@@ -284,6 +294,14 @@
     note.textContent = user ? tr(cloudSyncState === "error" ? "accountSyncError" : "accountSyncReady") : tr("accountSyncHelp");
     if (!user) popover.hidden = true;
     document.querySelectorAll('[data-route="admin"]').forEach((link) => { link.hidden = !editor; });
+    if (editModeButton) {
+      const route = parseRoute();
+      editModeButton.hidden = !editor || route.page !== "roadmap";
+      editModeButton.setAttribute("aria-pressed", String(adminEditMode));
+      editModeButton.setAttribute("aria-label", adminEditMode ? tr("finishEditing") : tr("editMode"));
+      editModeButton.title = adminEditMode ? tr("finishEditing") : tr("editMode");
+      if (editModeLabel) editModeLabel.textContent = adminEditMode ? tr("finishEditing") : tr("editMode");
+    }
   };
   const categoryName = (id) => copy[state.language].categoryNames[id] || id;
   const completedIds = (roadmap) => state.progress[roadmap.id] || [];
@@ -447,6 +465,8 @@
   };
   const roadmapHref = (roadmap, topicId) => `#/roadmap/${encodeURIComponent(roadmap.id)}${topicId ? `?topic=${encodeURIComponent(topicId)}` : ""}`;
   const learningHref = (roadmap, topicId) => `#/learn/${encodeURIComponent(roadmap.id)}?topic=${encodeURIComponent(topicId)}`;
+  const conceptIdFor = (topic, index) => topic.subtopics?.[index]?.id || `${topic.id}-concept-${index + 1}`;
+  const conceptHref = (roadmap, topic, conceptId) => `#/learn/${encodeURIComponent(roadmap.id)}?topic=${encodeURIComponent(topic.id)}&concept=${encodeURIComponent(conceptId)}`;
   const categoryHref = (category) => `#/paths${category && category !== "all" ? `?category=${encodeURIComponent(category)}` : ""}`;
   const librarySearchHref = (category, query) => {
     const params = new URLSearchParams();
@@ -467,14 +487,14 @@
     const skipped = skippedIds(roadmap).length;
     return `<div class="progress-meta ${compact ? "progress-meta-compact" : ""}"><span>${formatNumber(done)} ${escapeHtml(tr("of"))} ${formatNumber(total)} ${escapeHtml(tr("topics"))}${skipped ? ` · ${formatNumber(skipped)} ${escapeHtml(tr("skippedExcluded"))}` : ""}</span><strong>${formatNumber(percent)}${percentSymbol()}</strong></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(tr("progress"))}" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100"><span style="width:${percent}%"></span></div>`;
   };
-  const topicStatusControls = (roadmap, topic) => {
+  const topicStatusControls = (roadmap, topic, forceVisible = false) => {
     const status = topicStatus(roadmap, topic.id);
     const actions = [
       ["learning", "book", tr("statusLearning")],
       ["done", "check", tr("statusDone")],
       ["skip", "close", tr("statusSkip")]
     ];
-    return `<div class="topic-status-controls" role="group" aria-label="${escapeHtml(tr("topicStatus"))}">${actions.map(([value, glyph, label]) => `<button class="topic-status-control status-control-${value} ${status === value ? "is-active" : ""}" type="button" data-action="set-topic-status" data-status="${value}" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-pressed="${status === value}" aria-label="${escapeHtml(label)}">${icon(glyph)}<span>${escapeHtml(label)}</span></button>`).join("")}</div>`;
+    return `<div class="topic-status-controls ${forceVisible ? "is-forced" : ""}" role="group" aria-label="${escapeHtml(tr("topicStatus"))}">${actions.map(([value, glyph, label]) => `<button class="topic-status-control status-control-${value} ${status === value ? "is-active" : ""}" type="button" data-action="set-topic-status" data-status="${value}" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-pressed="${status === value}" aria-label="${escapeHtml(label)}">${icon(glyph)}<span>${escapeHtml(label)}</span></button>`).join("")}</div>`;
   };
   const roadmapCard = (roadmap, options = {}) => {
     const progress = roadmapProgress(roadmap);
@@ -524,29 +544,37 @@
         <section class="library-results" aria-label="${escapeHtml(heading)}"><div class="results-toolbar"><span>${formatNumber(list.length)} ${escapeHtml(tr("results"))}</span>${rawQuery ? `<span class="query-chip">${icon("search")}${escapeHtml(rawQuery)}<a href="${categoryHref(selectedCategory)}" aria-label="${escapeHtml(tr("clearSearch"))}">×</a></span>` : ""}</div>${rawQuery && queryResolution.changed ? `<button type="button" class="search-correction library-search-correction" data-action="apply-library-search-suggestion" data-query="${escapeHtml(query)}" data-category="${escapeHtml(selectedCategory)}">${icon("search")}<span>${escapeHtml(tr("didYouMean"))} <strong dir="auto">${escapeHtml(queryResolution.suggestion)}</strong>?</span></button>` : ""}${hasRoadmaps ? `<div class="roadmap-grid">${list.map((roadmap) => roadmapCard(roadmap)).join("")}</div>` : `<div class="empty-state">${icon(mode === "saved" ? "bookmark" : mode === "learning" ? "play" : "search")}<h2>${escapeHtml(noItems)}</h2>${mode === "saved" || mode === "learning" ? `<a class="button button-primary" href="${categoryHref("all")}">${escapeHtml(tr("browseAll"))}${icon("arrow")}</a>` : ""}</div>`}</section>
       </div>`;
   };
-  const renderLearningPage = (roadmap, selected) => {
+  const renderLearningPage = (roadmap, selected, conceptId = "") => {
     const { topic, module } = selected;
-    const title = localized(topic.title);
+    const conceptIndex = (topic.subtopics || []).findIndex((item, index) => conceptIdFor(topic, index) === conceptId);
+    const selectedConcept = conceptIndex >= 0 ? topic.subtopics[conceptIndex] : null;
+    const title = localized(selectedConcept || topic.title);
+    const topicTitle = localized(topic.title);
     const moduleTitle = localized(module.title);
     const roadmapTitle = localized(roadmap.title);
     const moduleIndex = roadmap.modules.indexOf(module);
     const topicIndex = module.topics.indexOf(topic);
     const microTopics = topic.subtopics || [];
-    const overview = localized(topic.overview).trim() || (state.language === "ar"
-      ? `يتناول هذا الموضوع «${title}» من خلال ${microTopics.map(localized).join("، ")}. تساعدك هذه المفاهيم على فهم علاقتها بـ«${moduleTitle}» وتطبيقها ضمن مجال «${roadmapTitle}».`
-      : `This topic covers ${title} through ${microTopics.map(localized).join(", ")}. These concepts help explain how it connects to ${moduleTitle} and where it is used in ${roadmapTitle}.`);
-    const customResources = (topic.resources || []).filter((resource) => resource?.url && /^https:\/\//i.test(resource.url));
+    const topicOverview = localized(topic.overview).trim() || (state.language === "ar"
+      ? `يتناول هذا الموضوع «${topicTitle}» من خلال ${microTopics.map(localized).join("، ")}. تساعدك هذه المفاهيم على فهم علاقتها بـ«${moduleTitle}» وتطبيقها ضمن مجال «${roadmapTitle}».`
+      : `This topic covers ${topicTitle} through ${microTopics.map(localized).join(", ")}. These concepts help explain how it connects to ${moduleTitle} and where it is used in ${roadmapTitle}.`);
+    const conceptOverview = localized(selectedConcept?.overview).trim() || (state.language === "ar"
+      ? `يرتبط مفهوم «${title}» بموضوع «${topicTitle}» ضمن «${moduleTitle}». اقرأ عنه، وابحث في المصادر المقترحة، ثم دوّن مثالاً يوضح استخدامه.`
+      : `“${title}” is one of the concepts within “${topicTitle}” in ${moduleTitle}. Explore the suggested sources and note an example of how it is used.`);
+    const overview = selectedConcept ? conceptOverview : topicOverview;
+    const customResources = [...(selectedConcept?.resources || []), ...(topic.resources || [])].filter((resource) => resource?.url && /^https:\/\//i.test(resource.url));
     const backHref = roadmapHref(roadmap, topic.id);
     state.started = [...new Set([...state.started, roadmap.id])];
     persist();
     return `<div class="learning-drawer-layer"><button class="learning-drawer-scrim" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}"></button><aside class="learning-drawer" role="dialog" aria-modal="true" aria-labelledby="selectedTopicTitle"><div class="learning-page">
-      <header class="learning-page-toolbar"><div class="learning-page-status">${topicStatusControls(roadmap, topic)}</div><div class="learning-toolbar-actions">${canEditContent() ? `<button class="learning-edit-trigger" type="button" data-action="open-content-editor" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${topicIndex}" aria-label="${escapeHtml(at("editContent"))}" title="${escapeHtml(at("editContent"))}">${icon("edit")}<span>${escapeHtml(at("editContent"))}</span></button>` : ""}<button class="panel-close" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}">${icon("close")}</button></div></header>
+      <header class="learning-page-toolbar"><div class="learning-page-status">${topicStatusControls(roadmap, topic)}</div><div class="learning-toolbar-actions">${canEditContent() ? `<button class="learning-edit-trigger ${adminEditMode ? "is-active" : ""}" type="button" data-action="toggle-admin-edit-mode" aria-pressed="${adminEditMode}" aria-label="${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}" title="${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}">${icon("edit")}<span>${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}</span></button>` : ""}<button class="panel-close" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}">${icon("close")}</button></div></header>
       <div class="learning-page-progress">${progressMarkup(roadmap, true)}</div>
       <main class="learning-panel learning-page-content" id="learningPanel" aria-labelledby="selectedTopicTitle">
-        <nav class="breadcrumbs learning-breadcrumbs" aria-label="${escapeHtml(tr("breadcrumbs"))}"><a href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}</a><span aria-hidden="true">/</span><a href="${categoryHref(roadmap.category)}">${escapeHtml(categoryName(roadmap.category))}</a><span aria-hidden="true">/</span><a href="${backHref}">${escapeHtml(roadmapTitle)}</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(title)}</span></nav>
-        <header class="learning-topic-hero"><div class="learning-topic-heading"><div class="detail-context"><span>${escapeHtml(roadmapTitle)}</span><span aria-hidden="true">/</span><span>${escapeHtml(moduleTitle)}</span></div><span class="learning-topic-kicker">${escapeHtml(tr("selected"))}</span></div><h1 id="selectedTopicTitle">${escapeHtml(title)}</h1><p>${escapeHtml(overview)}</p></header>
+        <nav class="breadcrumbs learning-breadcrumbs" aria-label="${escapeHtml(tr("breadcrumbs"))}"><a href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}</a><span aria-hidden="true">/</span><a href="${categoryHref(roadmap.category)}">${escapeHtml(categoryName(roadmap.category))}</a><span aria-hidden="true">/</span><a href="${backHref}">${escapeHtml(roadmapTitle)}</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(selectedConcept ? `${topicTitle} / ${title}` : title)}</span></nav>
+        <header class="learning-topic-hero"><div class="learning-topic-heading"><div class="detail-context"><span>${escapeHtml(roadmapTitle)}</span><span aria-hidden="true">/</span><span>${escapeHtml(moduleTitle)}</span></div><span class="learning-topic-kicker">${escapeHtml(selectedConcept ? at("editConcept") : tr("selected"))}</span></div><h1 id="selectedTopicTitle">${escapeHtml(title)}</h1><p>${escapeHtml(overview)}</p></header>
         <div class="learning-content-grid"><div class="learning-content-primary">
-          <section class="learning-card learning-concepts"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(tr("whatToLearn"))}</h2><p>${escapeHtml(tr("learnNote"))}</p></div></div><div class="concept-grid">${microTopics.map((subtopic) => `<a class="concept-card" href="${resourceUrl("articles", localized(subtopic), `${title} ${moduleTitle}`, roadmap)}" target="_blank" rel="noopener noreferrer"><span class="concept-card-icon">${icon("search")}</span><span dir="auto">${escapeHtml(localized(subtopic))}</span>${icon("arrow")}</a>`).join("")}</div></section>
+          ${selectedConcept ? `<section class="learning-card"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(topicTitle)}</h2><p>${escapeHtml(moduleTitle)}</p></div></div><a class="button button-secondary" href="${learningHref(roadmap, topic.id)}">${escapeHtml(at("backToParent"))}${icon("arrow")}</a></section>` : ""}
+          <section class="learning-card learning-concepts"><div class="learning-card-heading"><span class="learning-card-icon">${icon("book")}</span><div><h2>${escapeHtml(tr("whatToLearn"))}</h2><p>${escapeHtml(tr("learnNote"))}</p></div></div><div class="concept-grid">${microTopics.map((subtopic, index) => `<a class="concept-card ${conceptId === conceptIdFor(topic, index) ? "is-current" : ""}" href="${conceptHref(roadmap, topic, conceptIdFor(topic, index))}" data-action="open-learning-concept" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${topicIndex}" data-concept="${index}" aria-current="${conceptId === conceptIdFor(topic, index) ? "page" : "false"}"><span class="concept-card-icon">${icon("search")}</span><span dir="auto">${escapeHtml(localized(subtopic))}</span>${icon("arrow")}</a>`).join("")}</div></section>
           <section class="learning-card practice-card"><div class="learning-card-heading"><span class="learning-card-icon">${icon("check")}</span><div><h2>${escapeHtml(tr("practice"))}</h2><p>${escapeHtml(tr("practiceNote"))}</p></div></div><div class="practice-output"><strong>${escapeHtml(tr("checkpointOutput"))}</strong><span>${escapeHtml(tr("checkpointOutputNote"))}</span></div></section>
         </div><aside class="learning-content-aside"><section class="learning-card learning-resources"><div class="learning-card-heading"><span class="learning-card-icon">${icon("layers")}</span><div><h2>${escapeHtml(tr("resources"))}</h2><p>${escapeHtml(tr("searchNote"))}</p></div></div><div class="resource-links">${customResources.map((resource) => `<a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(localized(resource.title) || resource.url)}</span>${icon("arrow")}</a>`).join("")}<a href="${resourceUrl("official", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchOfficial"))}</span>${icon("arrow")}</a><a href="${resourceUrl("articles", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchArticles"))}</span>${icon("arrow")}</a><a href="${resourceUrl("videos", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>${escapeHtml(tr("searchVideos"))}</span>${icon("arrow")}</a><a href="${resourceUrl("academic", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("chart")}<span>${escapeHtml(tr("searchAcademic"))}</span>${icon("arrow")}</a><button type="button" data-action="copy-prompt" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}">${icon("spark")}<span>${escapeHtml(tr("studyPrompt"))}</span>${icon("arrow")}</button></div></section></aside></div>
         <p class="detail-footnote">${escapeHtml(tr("selfPacedNote"))}</p></main></div></aside></div>`;
@@ -561,7 +589,10 @@
       subtopics: "Smaller concepts to explore", subtopicEn: "Concept in English", subtopicAr: "Concept in Arabic", addSubtopic: "Add concept", remove: "Remove", sources: "Your sources", sourceTitleEn: "Source label in English", sourceTitleAr: "Source label in Arabic", sourceUrl: "Source link (https://)", addSource: "Add source",
       save: "Publish changes", deleteRoadmap: "Remove this roadmap", saveNote: "Your published edits become visible to all visitors.", saved: "Published. Visitors will see it after refreshing.", saving: "Publishing…", createTitle: "New roadmap", config: "The content editor is still being connected.",
       loadError: "Could not load published edits. The original roadmap content is still available.", invalid: "Add an English title before publishing.",
-      editContent: "Edit content", quickEditHint: "Edits publish for everyone. Use the full editor to add or remove paths and topics.", pathDetails: "Path details", connections: "Connected paths", relatedPaths: "Related learning paths", relatedHint: "Choose other paths that learners may find useful.", connectionsHint: "Choose other paths that learners may find useful.", editStructure: "Manage all content", cancelEdit: "Cancel", closeEditor: "Close editor", selectModuleTopic: "Choose a main topic and learning checkpoint", editCheckpoint: "Learning checkpoint", contentSaved: "Changes published for everyone.", discardEdit: "Discard your unsaved edits?", relatedEmpty: "No connected paths selected.", editPath: "Edit path", editMainTopic: "Edit main topic", editLearningTopic: "Edit learning topic", quickEditTitle: "Quick content editor",
+      editContent: "Edit content", quickEditHint: "Edits publish for everyone. Use the full editor to add or remove paths and topics.", pathDetails: "Path details", connections: "Connected paths", relatedPaths: "Related learning paths", relatedHint: "Choose other paths that learners may find useful.", connectionsHint: "Choose other paths that learners may find useful.", editStructure: "Manage all content", cancelEdit: "Cancel", closeEditor: "Close editor", selectModuleTopic: "Choose a main topic and learning checkpoint", editCheckpoint: "Learning checkpoint", contentSaved: "Changes published for everyone.", discardEdit: "Discard your unsaved edits?", relatedEmpty: "No connected paths selected.", editPath: "Edit path", editMainTopic: "Edit main topic", editLearningTopic: "Edit learning topic", quickEditTitle: "Edit selected content",
+      editMode: "Edit roadmap", finishEditing: "Finish editing", adminEditModeHint: "Select a card to edit it. Visitors can still open any card to learn.", editModule: "Edit main topic", editTopic: "Edit checkpoint", editConcept: "Edit concept", addTopic: "Add checkpoint", removeTopic: "Delete checkpoint", childTopics: "Topics in this section", conceptsSection: "Concepts to explore", conceptOverviewEn: "Explanation in English", conceptOverviewAr: "Explanation in Arabic", openEdit: "Edit", backToParent: "Back", noDescription: "Add a short explanation for this concept.",
+      concept: "Concept",
+      noChildTopics: "No learning checkpoints here yet.", noSubtopics: "No concepts here yet.", removeTopicConfirm: "Delete this checkpoint and its concepts?", removeModuleConfirm: "Delete this main topic and everything inside it?", removeConceptConfirm: "Delete this concept and its sources?",
     },
     ar: {
       title: "محرر المحتوى", intro: "عدّل المسار وانشره ليظهر للجميع. تظهر التعديلات بعد تحديث الصفحة.",
@@ -572,7 +603,10 @@
       subtopics: "مفاهيم فرعية للبحث والتعلم", subtopicEn: "المفهوم بالإنجليزية", subtopicAr: "المفهوم بالعربية", addSubtopic: "إضافة مفهوم", remove: "حذف", sources: "مصادرك", sourceTitleEn: "اسم المصدر بالإنجليزية", sourceTitleAr: "اسم المصدر بالعربية", sourceUrl: "رابط المصدر (https://)", addSource: "إضافة مصدر",
       save: "نشر التعديلات", deleteRoadmap: "حذف هذا المسار", saveNote: "تظهر التعديلات المنشورة لكل الزوار.", saved: "تم النشر. تظهر التعديلات للزوار بعد تحديث الصفحة.", saving: "جارٍ النشر…", createTitle: "مسار جديد", config: "يجري إعداد محرر المحتوى.",
       loadError: "تعذر تحميل التعديلات المنشورة. ما زال محتوى المسارات الأصلي متاحاً.", invalid: "أضف عنواناً بالإنجليزية قبل النشر.",
-      editContent: "تعديل المحتوى", quickEditHint: "تُنشر التعديلات للجميع. استخدم المحرر الكامل لإضافة المسارات والموضوعات أو حذفها.", pathDetails: "بيانات المسار", connections: "المسارات المرتبطة", relatedPaths: "مسارات تعلم مرتبطة", relatedHint: "اختر مسارات أخرى قد تفيد المتعلم.", connectionsHint: "اختر المسارات الأخرى التي قد تفيد المتعلم.", editStructure: "إدارة كل المحتوى", cancelEdit: "إلغاء", closeEditor: "إغلاق المحرر", selectModuleTopic: "اختر موضوعاً رئيسياً ونقطة تعلم", editCheckpoint: "نقطة التعلم", contentSaved: "تم نشر التعديلات للجميع.", discardEdit: "هل تريد إلغاء تعديلاتك غير المنشورة؟", relatedEmpty: "لا توجد مسارات مرتبطة محددة.", editPath: "تعديل المسار", editMainTopic: "تعديل الموضوع الرئيسي", editLearningTopic: "تعديل موضوع التعلم", quickEditTitle: "محرر المحتوى السريع",
+      editContent: "تعديل المحتوى", quickEditHint: "التغييرات المنشورة تظهر للجميع. استخدم الإدارة الكاملة لإضافة المسارات أو الموضوعات وحذفها.", pathDetails: "بيانات المسار", connections: "المسارات المرتبطة", relatedPaths: "مسارات تعلم مرتبطة", relatedHint: "اختر مسارات أخرى قد تفيد المتعلم.", connectionsHint: "اختر المسارات الأخرى التي قد تفيد المتعلم.", editStructure: "إدارة كل المحتوى", cancelEdit: "إلغاء", closeEditor: "إغلاق المحرر", selectModuleTopic: "اختر موضوعاً رئيسياً ونقطة تعلم", editCheckpoint: "نقطة التعلم", contentSaved: "تم نشر التعديلات للجميع.", discardEdit: "هل تريد إلغاء تعديلاتك غير المنشورة؟", relatedEmpty: "لا توجد مسارات مرتبطة محددة.", editPath: "تعديل المسار", editMainTopic: "تعديل الموضوع الرئيسي", editLearningTopic: "تعديل موضوع التعلم", quickEditTitle: "تعديل المحتوى المحدد",
+      editMode: "تعديل المسار", finishEditing: "إنهاء التعديل", adminEditModeHint: "اضغط على العنصر الذي تريد تعديله. يظل بإمكان الزوار فتح أي عنصر للتعلم.", editModule: "تعديل الموضوع الرئيسي", editTopic: "تعديل نقطة التعلم", editConcept: "تعديل المفهوم", addTopic: "إضافة نقطة تعلم", removeTopic: "حذف نقطة التعلم", childTopics: "موضوعات هذا القسم", conceptsSection: "مفاهيم للتعلم", conceptOverviewEn: "الشرح بالإنجليزية", conceptOverviewAr: "الشرح بالعربية", openEdit: "تعديل", backToParent: "رجوع", noDescription: "أضف شرحاً مختصراً لهذا المفهوم.",
+      concept: "مفهوم",
+      noChildTopics: "لا توجد نقاط تعلم في هذا القسم بعد.", noSubtopics: "لا توجد مفاهيم فرعية بعد.", removeTopicConfirm: "هل تريد حذف نقطة التعلم ومفاهيمها الفرعية؟", removeModuleConfirm: "هل تريد حذف الموضوع الرئيسي وكل ما بداخله؟", removeConceptConfirm: "هل تريد حذف هذا المفهوم ومصادره؟",
     }
   };
   const at = (key) => adminCopy[state.language][key] || adminCopy.en[key] || key;
@@ -652,7 +686,7 @@
           ${activeModule ? `<div class="cms-grid">${adminField(at("moduleTitleEn"), `modules.${adminModuleIndex}.title.en`, activeModule.title?.en)}${adminField(at("moduleTitleAr"), `modules.${adminModuleIndex}.title.ar`, activeModule.title?.ar)}</div>` : `<p>${escapeHtml(at("chooseModule"))}</p>`}</section>
         ${activeModule ? `<section class="cms-card"><div class="cms-card-heading"><h2>${escapeHtml(at("checkpoint"))}</h2><div class="cms-actions"><label class="cms-field cms-select"><span>${escapeHtml(at("chooseCheckpoint"))}</span><select id="adminTopicSelect">${adminOptions(topicsSelect, String(adminTopicIndex), at("chooseCheckpoint"))}</select></label><button class="button button-secondary" type="button" data-action="admin-add-topic">${escapeHtml(at("addCheckpoint"))}</button>${activeTopic ? `<button class="button button-danger" type="button" data-action="admin-remove-topic">${escapeHtml(at("removeCheckpoint"))}</button>` : ""}</div></div>
           ${activeTopic ? `<div class="cms-grid">${adminField(at("topicTitleEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.title.en`, activeTopic.title?.en)}${adminField(at("topicTitleAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.title.ar`, activeTopic.title?.ar)}${adminField(at("overviewEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.overview.en`, activeTopic.overview?.en, true)}${adminField(at("overviewAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.overview.ar`, activeTopic.overview?.ar, true)}</div>
-            <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("subtopics"))}</h3><button class="button button-secondary" type="button" data-action="admin-add-subtopic">${escapeHtml(at("addSubtopic"))}</button></div>${subtopics.map((subtopic, index) => `<div class="cms-repeater"><div class="cms-grid">${adminField(at("subtopicEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.en`, typeof subtopic === "string" ? subtopic : subtopic.en)}${adminField(at("subtopicAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.ar`, typeof subtopic === "string" ? "" : subtopic.ar)}</div><button class="button button-danger" type="button" data-action="admin-remove-subtopic" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>
+            <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("subtopics"))}</h3><button class="button button-secondary" type="button" data-action="admin-add-subtopic">${escapeHtml(at("addSubtopic"))}</button></div>${subtopics.map((subtopic, index) => `<div class="cms-repeater"><div class="cms-grid">${adminField(at("subtopicEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.en`, typeof subtopic === "string" ? subtopic : subtopic.en)}${adminField(at("subtopicAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.ar`, typeof subtopic === "string" ? "" : subtopic.ar)}${adminField(at("conceptOverviewEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.overview.en`, subtopic?.overview?.en, true)}${adminField(at("conceptOverviewAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.overview.ar`, subtopic?.overview?.ar, true)}</div><button class="button button-danger" type="button" data-action="admin-remove-subtopic" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>
             <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("sources"))}</h3><button class="button button-secondary" type="button" data-action="admin-add-resource">${escapeHtml(at("addSource"))}</button></div>${resources.map((resource, index) => `<div class="cms-repeater"><div class="cms-grid">${adminField(at("sourceTitleEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.title.en`, resource.title?.en)}${adminField(at("sourceTitleAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.title.ar`, resource.title?.ar)}${adminField(at("sourceUrl"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.url`, resource.url)}</div><button class="button button-danger" type="button" data-action="admin-remove-resource" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>` : `<p>${escapeHtml(at("chooseCheckpoint"))}</p>`}</section>` : ""}
         <footer class="cms-publish"><p>${escapeHtml(at("saveNote"))}</p><div>${adminDraft.id ? `<button class="button button-danger" type="button" data-action="admin-delete-roadmap">${escapeHtml(at("deleteRoadmap"))}</button>` : ""}<button class="button button-primary" type="button" data-action="admin-save" ${adminBusy ? "disabled" : ""}>${escapeHtml(adminBusy ? at("saving") : at("save"))}</button></div></footer>
         ${adminNotice ? `<p class="cms-alert" role="status">${escapeHtml(adminNotice)}</p>` : ""}
@@ -665,26 +699,42 @@
     const draft = inlineEditDraft;
     if (!draft) return "";
     const modules = draft.modules || [];
-    inlineEditModuleIndex = Math.max(0, Math.min(inlineEditModuleIndex, modules.length - 1));
     const module = modules[inlineEditModuleIndex];
-    const topics = module?.topics || [];
-    inlineEditTopicIndex = Math.max(0, Math.min(inlineEditTopicIndex, topics.length - 1));
-    const topic = topics[inlineEditTopicIndex];
-    const moduleOptions = modules.map((item, index) => `<option value="${index}" ${index === inlineEditModuleIndex ? "selected" : ""}>${escapeHtml(localized(item.title) || `${at("module")} ${index + 1}`)}</option>`).join("");
-    const topicOptions = topics.map((item, index) => `<option value="${index}" ${index === inlineEditTopicIndex ? "selected" : ""}>${escapeHtml(localized(item.title) || `${at("checkpoint")} ${index + 1}`)}</option>`).join("");
+    const topic = module?.topics?.[inlineEditTopicIndex];
+    const concept = topic?.subtopics?.[inlineEditConceptIndex];
     const related = Array.isArray(draft.related) ? draft.related : [];
     const relatedOptions = roadmaps.filter((item) => item.id !== draft.id).map((item) => `<label class="related-path-choice"><input type="checkbox" data-inline-related value="${escapeHtml(item.id)}" ${related.includes(item.id) ? "checked" : ""}><span>${escapeHtml(localized(item.title))}</span></label>`).join("");
-    const subtopics = topic?.subtopics || [];
-    const resources = topic?.resources || [];
+    const topicPath = `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}`;
+    const moduleTitle = localized(module?.title) || at("module");
+    const topicTitle = localized(topic?.title) || at("checkpoint");
+    const conceptTitle = localized(concept) || at("concept");
+    const resourcesFor = (resources, path) => `<div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("sources"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-resource">${escapeHtml(at("addSource"))}</button></div>${resources.map((resource, index) => `<div class="cms-repeater"><div class="cms-grid">${inlineEditorField(at("sourceTitleEn"), `${path}.${index}.title.en`, resource.title?.en)}${inlineEditorField(at("sourceTitleAr"), `${path}.${index}.title.ar`, resource.title?.ar)}${inlineEditorField(at("sourceUrl"), `${path}.${index}.url`, resource.url)}</div><button class="button button-danger" type="button" data-action="inline-remove-resource" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>`;
+    let editorTitle = at("editPath");
+    let editorBody = "";
+    let backAction = "";
+    if (inlineEditTarget.kind === "module" && module) {
+      editorTitle = at("editModule");
+      editorBody = `<section class="content-edit-section"><div class="cms-grid">${inlineEditorField(at("moduleTitleEn"), `modules.${inlineEditModuleIndex}.title.en`, module.title?.en)}${inlineEditorField(at("moduleTitleAr"), `modules.${inlineEditModuleIndex}.title.ar`, module.title?.ar)}</div></section>
+        <section class="content-edit-section"><div class="cms-card-heading"><h3>${escapeHtml(at("childTopics"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-topic">${escapeHtml(at("addTopic"))}</button></div><div class="inline-child-list">${module.topics.map((child, index) => `<div class="inline-child-item"><span>${escapeHtml(localized(child.title) || `${at("checkpoint")} ${index + 1}`)}</span><div><button class="button button-secondary" type="button" data-action="inline-edit-child-topic" data-topic="${index}">${escapeHtml(at("openEdit"))}</button><button class="button button-danger" type="button" data-action="inline-remove-topic" data-topic="${index}">${escapeHtml(at("remove"))}</button></div></div>`).join("") || `<p class="content-edit-note">${escapeHtml(at("noChildTopics"))}</p>`}</div><button class="button button-danger inline-delete-parent" type="button" data-action="inline-remove-module">${escapeHtml(at("removeModule"))}</button></section>`;
+    } else if (inlineEditTarget.kind === "topic" && topic) {
+      editorTitle = at("editTopic");
+      backAction = `<button class="button button-ghost" type="button" data-action="inline-back-to-parent">${icon("arrow")}${escapeHtml(at("backToParent"))}</button>`;
+      editorBody = `<section class="content-edit-section"><div class="cms-card-heading"><h3>${escapeHtml(moduleTitle)}</h3><button class="button button-danger" type="button" data-action="inline-remove-topic">${escapeHtml(at("removeTopic"))}</button></div><div class="cms-grid">${inlineEditorField(at("topicTitleEn"), `${topicPath}.title.en`, topic.title?.en)}${inlineEditorField(at("topicTitleAr"), `${topicPath}.title.ar`, topic.title?.ar)}${inlineEditorField(at("overviewEn"), `${topicPath}.overview.en`, topic.overview?.en, true)}${inlineEditorField(at("overviewAr"), `${topicPath}.overview.ar`, topic.overview?.ar, true)}</div></section>
+        <section class="content-edit-section"><div class="cms-card-heading"><h3>${escapeHtml(at("conceptsSection"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-subtopic">${escapeHtml(at("addSubtopic"))}</button></div><div class="inline-child-list">${topic.subtopics.map((item, index) => `<div class="inline-child-item inline-concept-item"><span><strong>${escapeHtml(localized(item) || `${at("concept")} ${index + 1}`)}</strong><small>${escapeHtml(localized(item.overview) || at("noDescription"))}</small></span><div><button class="button button-secondary" type="button" data-action="inline-edit-concept" data-concept="${index}">${escapeHtml(at("openEdit"))}</button><button class="button button-danger" type="button" data-action="inline-remove-subtopic" data-index="${index}">${escapeHtml(at("remove"))}</button></div></div>`).join("") || `<p class="content-edit-note">${escapeHtml(at("noSubtopics"))}</p>`}</div></section>${resourcesFor(topic.resources || [], `${topicPath}.resources`)}`;
+    } else if (inlineEditTarget.kind === "subtopic" && concept) {
+      editorTitle = at("editConcept");
+      backAction = `<button class="button button-ghost" type="button" data-action="inline-back-to-parent">${icon("arrow")}${escapeHtml(at("backToParent"))}</button>`;
+      editorBody = `<section class="content-edit-section"><div class="cms-card-heading"><h3>${escapeHtml(topicTitle)}</h3><button class="button button-danger" type="button" data-action="inline-remove-selected-concept">${escapeHtml(at("remove"))}</button></div><div class="cms-grid">${inlineEditorField(at("subtopicEn"), `${topicPath}.subtopics.${inlineEditConceptIndex}.en`, concept.en)}${inlineEditorField(at("subtopicAr"), `${topicPath}.subtopics.${inlineEditConceptIndex}.ar`, concept.ar)}${inlineEditorField(at("conceptOverviewEn"), `${topicPath}.subtopics.${inlineEditConceptIndex}.overview.en`, concept.overview?.en, true)}${inlineEditorField(at("conceptOverviewAr"), `${topicPath}.subtopics.${inlineEditConceptIndex}.overview.ar`, concept.overview?.ar, true)}</div></section>${resourcesFor(concept.resources || [], `${topicPath}.subtopics.${inlineEditConceptIndex}.resources`)}`;
+    } else {
+      editorTitle = at("editPath");
+      editorBody = `<section class="content-edit-section"><div class="cms-grid">${inlineEditorField(at("titleEn"), "title.en", draft.title?.en)}${inlineEditorField(at("titleAr"), "title.ar", draft.title?.ar)}${inlineEditorField(at("summaryEn"), "summary.en", draft.summary?.en, true)}${inlineEditorField(at("summaryAr"), "summary.ar", draft.summary?.ar, true)}<label class="cms-field"><span>${escapeHtml(at("category"))}</span><select data-inline-path="category">${CATEGORIES.map((category) => `<option value="${escapeHtml(category)}" ${draft.category === category ? "selected" : ""}>${escapeHtml(categoryName(category))}</option>`).join("")}</select></label></div></section>
+        <section class="content-edit-section"><div class="cms-card-heading"><div><h3>${escapeHtml(at("relatedPaths"))}</h3><p class="content-edit-note">${escapeHtml(at("relatedHint"))}</p></div></div><div class="related-path-options">${relatedOptions || `<p class="related-path-empty">${escapeHtml(at("relatedEmpty"))}</p>`}</div></section>
+        <section class="content-edit-section"><div class="cms-card-heading"><h3>${escapeHtml(at("module"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-module">${escapeHtml(at("addModule"))}</button></div><div class="inline-child-list">${modules.map((item, index) => `<button class="inline-child-link" type="button" data-action="inline-edit-child-module" data-module="${index}"><strong>${escapeHtml(localized(item.title) || `${at("module")} ${index + 1}`)}</strong>${icon("arrow")}</button>`).join("")}</div></section>`;
+    }
     return `<dialog class="content-edit-dialog" id="contentEditDialog" aria-labelledby="contentEditTitle"><div class="content-edit-shell">
-      <header class="content-edit-header"><div><span class="eyebrow">${escapeHtml(at("title"))}</span><h2 id="contentEditTitle">${escapeHtml(at("quickEditTitle"))}</h2><p>${escapeHtml(at("quickEditHint"))}</p></div><button class="panel-close" type="button" data-action="close-content-editor" aria-label="${escapeHtml(at("closeEditor"))}">${icon("close")}</button></header>
+      <header class="content-edit-header"><div>${backAction}<span class="eyebrow">${escapeHtml(localized(draft.title))}</span><h2 id="contentEditTitle">${escapeHtml(editorTitle)}</h2><p>${escapeHtml(at("quickEditHint"))}</p></div><button class="panel-close" type="button" data-action="close-content-editor" aria-label="${escapeHtml(at("closeEditor"))}">${icon("close")}</button></header>
       <form id="inlineContentEditor" class="content-edit-form"><div class="content-edit-body">
-        <details class="content-edit-section" open><summary>${escapeHtml(at("pathDetails"))}</summary><div class="cms-grid">${inlineEditorField(at("titleEn"), "title.en", draft.title?.en)}${inlineEditorField(at("titleAr"), "title.ar", draft.title?.ar)}${inlineEditorField(at("summaryEn"), "summary.en", draft.summary?.en, true)}${inlineEditorField(at("summaryAr"), "summary.ar", draft.summary?.ar, true)}<label class="cms-field"><span>${escapeHtml(at("category"))}</span><select data-inline-path="category">${CATEGORIES.map((category) => `<option value="${escapeHtml(category)}" ${draft.category === category ? "selected" : ""}>${escapeHtml(categoryName(category))}</option>`).join("")}</select></label></div></details>
-        <details class="content-edit-section"><summary>${escapeHtml(at("relatedPaths"))}</summary><p class="content-edit-note">${escapeHtml(at("relatedHint"))}</p><div class="related-path-options">${relatedOptions || `<p class="related-path-empty">${escapeHtml(at("relatedEmpty"))}</p>`}</div></details>
-        <details class="content-edit-section"><summary>${escapeHtml(at("selectModuleTopic"))}</summary><div class="cms-grid">${modules.length ? `<label class="cms-field"><span>${escapeHtml(at("chooseModule"))}</span><select id="inlineModuleSelect">${moduleOptions}</select></label>` : ""}${topics.length ? `<label class="cms-field"><span>${escapeHtml(at("chooseCheckpoint"))}</span><select id="inlineTopicSelect">${topicOptions}</select></label>` : ""}</div>${module ? `<div class="cms-grid">${inlineEditorField(at("moduleTitleEn"), `modules.${inlineEditModuleIndex}.title.en`, module.title?.en)}${inlineEditorField(at("moduleTitleAr"), `modules.${inlineEditModuleIndex}.title.ar`, module.title?.ar)}</div>` : `<p class="content-edit-note">${escapeHtml(at("chooseModule"))}</p>`}</details>
-        ${topic ? `<details class="content-edit-section" open><summary>${escapeHtml(at("editCheckpoint"))}</summary><div class="cms-grid">${inlineEditorField(at("topicTitleEn"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.title.en`, topic.title?.en)}${inlineEditorField(at("topicTitleAr"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.title.ar`, topic.title?.ar)}${inlineEditorField(at("overviewEn"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.overview.en`, topic.overview?.en, true)}${inlineEditorField(at("overviewAr"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.overview.ar`, topic.overview?.ar, true)}</div>
-          <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("subtopics"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-subtopic">${escapeHtml(at("addSubtopic"))}</button></div>${subtopics.map((subtopic, index) => `<div class="cms-repeater"><div class="cms-grid">${inlineEditorField(at("subtopicEn"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.subtopics.${index}.en`, typeof subtopic === "string" ? subtopic : subtopic.en)}${inlineEditorField(at("subtopicAr"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.subtopics.${index}.ar`, typeof subtopic === "string" ? "" : subtopic.ar)}</div><button class="button button-danger" type="button" data-action="inline-remove-subtopic" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>
-          <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("sources"))}</h3><button class="button button-secondary" type="button" data-action="inline-add-resource">${escapeHtml(at("addSource"))}</button></div>${resources.map((resource, index) => `<div class="cms-repeater"><div class="cms-grid">${inlineEditorField(at("sourceTitleEn"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.resources.${index}.title.en`, resource.title?.en)}${inlineEditorField(at("sourceTitleAr"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.resources.${index}.title.ar`, resource.title?.ar)}${inlineEditorField(at("sourceUrl"), `modules.${inlineEditModuleIndex}.topics.${inlineEditTopicIndex}.resources.${index}.url`, resource.url)}</div><button class="button button-danger" type="button" data-action="inline-remove-resource" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div></details>` : ""}
+        ${editorBody}
         ${inlineEditError ? `<p class="cms-alert" role="alert">${escapeHtml(inlineEditError)}</p>` : ""}
       </div><footer class="content-edit-footer"><button class="button button-secondary" type="button" data-action="open-full-editor">${escapeHtml(at("editStructure"))}</button><div><button class="button button-secondary" type="button" data-action="close-content-editor">${escapeHtml(at("cancelEdit"))}</button><button class="button button-primary" type="submit" ${inlineEditBusy ? "disabled" : ""}>${escapeHtml(inlineEditBusy ? at("saving") : at("save"))}</button></div></footer></form>
     </div></dialog>`;
@@ -708,18 +758,19 @@
       const label = localized(topic.title);
       const statusLabel = tr(status === "done" ? "statusDone" : status === "skip" ? "statusSkip" : status === "learning" ? "statusLearning" : "available");
       const marker = status === "done" ? icon("check") : status === "skip" ? icon("close") : status === "learning" ? icon("book") : "";
-      const action = `data-action="open-topic" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}"`;
-      const editorTool = canEditContent() ? `<button class="topic-edit-button" type="button" data-action="open-content-editor" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${module.topics.indexOf(topic)}" aria-label="${escapeHtml(`${at("editLearningTopic")}: ${label}`)}" title="${escapeHtml(at("editContent"))}">${icon("edit")}</button>` : "";
-      return `<div class="topic-item topic-item-${status} ${current ? "is-selected" : ""}"><button class="topic-node node-${status} ${current ? "is-selected" : ""} ${editorTool ? "has-editor-tool" : ""}" type="button" ${action} aria-label="${escapeHtml(`${label}. ${statusLabel}`)}" ${current ? `aria-current="step"` : ""}><span class="node-marker">${marker}</span><span class="node-label" dir="auto">${escapeHtml(label)}</span></button>${topicStatusControls(roadmap, topic)}${editorTool}</div>`;
+      const topicIndex = module.topics.indexOf(topic);
+      const action = `data-action="open-topic" data-roadmap="${escapeHtml(roadmap.id)}" data-module-index="${moduleIndex}" data-topic-index="${topicIndex}" data-topic="${escapeHtml(topic.id)}"`;
+      const inEditMode = canEditContent() && adminEditMode;
+      const statusOpen = mobileStatusTopic === topic.id;
+      return `<div class="topic-item topic-item-${status} ${current ? "is-selected" : ""} ${statusOpen ? "is-status-open" : ""}"><button class="topic-node node-${status} ${current ? "is-selected" : ""} ${inEditMode ? "is-edit-selectable" : ""}" type="button" ${action} aria-label="${escapeHtml(`${label}. ${statusLabel}`)}" ${current ? `aria-current="step"` : ""}><span class="node-marker">${marker}</span><span class="node-label" dir="auto">${escapeHtml(label)}</span></button>${topicStatusControls(roadmap, topic, statusOpen)}</div>`;
     }).join("")}</div></div>`;
     const empty = '<div class="map-spacer" aria-hidden="true"></div>';
     const moduleCopy = localized(module.title);
     const isFoundation = moduleIndex === 0 || /foundation|introduction|core|basic|أسس|مقدمة|المفاهيم الأساسية|الأساسيات/iu.test(moduleCopy);
     const hubMarker = moduleStatus === "done" ? icon("check") : moduleStatus === "skip" ? icon("close") : moduleStatus === "current" ? icon("play") : icon("layers");
     const hubLabel = moduleStatus === "done" ? tr("statusDone") : moduleStatus === "skip" ? tr("statusSkip") : moduleStatus === "current" ? tr("inProgress") : isFoundation ? tr("foundations") : tr("available");
-    const hubButton = `<button class="map-hub hub-${moduleStatus}" type="button" data-action="open-module" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(targetTopic?.id || "")}" ${targetTopic ? "" : "disabled"}><span class="hub-marker">${hubMarker}</span><span class="hub-copy"><strong dir="auto">${escapeHtml(moduleCopy)}</strong><small>${escapeHtml(hubLabel)}</small></span>${icon("arrow")}</button>`;
-    const hubEdit = canEditContent() ? `<button class="map-hub-edit" type="button" data-action="open-content-editor" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="0" aria-label="${escapeHtml(`${at("editMainTopic")}: ${moduleCopy}`)}" title="${escapeHtml(at("editContent"))}">${icon("edit")}</button>` : "";
-    const hub = `<div class="map-hub-wrap">${hubButton}${hubEdit}</div>`;
+    const canEditModule = canEditContent() && adminEditMode;
+    const hub = `<div class="map-hub-wrap"><button class="map-hub hub-${moduleStatus} ${canEditModule ? "is-edit-selectable" : ""}" type="button" data-action="open-module" data-roadmap="${escapeHtml(roadmap.id)}" data-module="${moduleIndex}" data-topic="${escapeHtml(targetTopic?.id || "")}" ${targetTopic || canEditModule ? "" : "disabled"}><span class="hub-marker">${hubMarker}</span><span class="hub-copy"><strong dir="auto">${escapeHtml(moduleCopy)}</strong><small>${escapeHtml(hubLabel)}</small></span>${icon("arrow")}</button></div>`;
     const left = branchSide === "left" ? branch : empty;
     const right = branchSide === "right" ? branch : empty;
     return `<section class="map-row row-${branchSide}" aria-label="${escapeHtml(moduleCopy)}">${left}${hub}${right}</section>`;
@@ -783,12 +834,12 @@
     state.started = [...new Set([...state.started, roadmap.id])];
     persist();
     root.innerHTML = `<div class="roadmap-page"><nav class="breadcrumbs" aria-label="${escapeHtml(tr("breadcrumbs"))}"><a href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}</a><span aria-hidden="true">/</span><a href="${categoryHref(roadmap.category)}">${escapeHtml(categoryName(roadmap.category))}</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(localized(roadmap.title))}</span></nav>
-        <header class="roadmap-header"><div class="roadmap-header-copy"><span class="eyebrow">${escapeHtml(categoryName(roadmap.category))}</span><h1>${escapeHtml(localized(roadmap.title))}</h1><p>${escapeHtml(localized(roadmap.summary))}</p></div><div class="roadmap-header-actions">${canEditContent() ? `<button class="roadmap-edit-button" type="button" data-action="open-content-editor" data-roadmap="${escapeHtml(roadmap.id)}" data-module="0" data-topic="0" aria-label="${escapeHtml(at("editPath"))}" title="${escapeHtml(at("editContent"))}">${icon("edit")}<span>${escapeHtml(at("editPath"))}</span></button>` : ""}<button class="bookmark-button roadmap-bookmark ${state.favorites.includes(roadmap.id) ? "is-saved" : ""}" type="button" data-action="toggle-save" data-roadmap="${escapeHtml(roadmap.id)}" aria-label="${escapeHtml(state.favorites.includes(roadmap.id) ? tr("removeSaved") : tr("saveRoadmap"))}" aria-pressed="${state.favorites.includes(roadmap.id)}">${icon("bookmark")}<span>${escapeHtml(state.favorites.includes(roadmap.id) ? tr("saved") : tr("save"))}</span></button></div></header>
+        <header class="roadmap-header"><div class="roadmap-header-copy ${canEditContent() && adminEditMode ? "is-edit-selectable" : ""}" ${canEditContent() && adminEditMode ? `role="button" tabindex="0" data-action="edit-selected-path" data-roadmap="${escapeHtml(roadmap.id)}"` : ""}><span class="eyebrow">${escapeHtml(categoryName(roadmap.category))}</span><h1>${escapeHtml(localized(roadmap.title))}</h1><p>${escapeHtml(localized(roadmap.summary))}</p></div><div class="roadmap-header-actions"><button class="bookmark-button roadmap-bookmark ${state.favorites.includes(roadmap.id) ? "is-saved" : ""}" type="button" data-action="toggle-save" data-roadmap="${escapeHtml(roadmap.id)}" aria-label="${escapeHtml(state.favorites.includes(roadmap.id) ? tr("removeSaved") : tr("saveRoadmap"))}" aria-pressed="${state.favorites.includes(roadmap.id)}">${icon("bookmark")}<span>${escapeHtml(state.favorites.includes(roadmap.id) ? tr("saved") : tr("save"))}</span></button></div></header>
         <section class="roadmap-progress-card"><div class="roadmap-progress-copy"><span class="progress-icon">${icon(allDone ? "check" : "chart")}</span><div><strong>${allDone ? escapeHtml(tr("journeyComplete")) : allSkipped ? escapeHtml(tr("allTopicsSkipped")) : escapeHtml(tr("nextUp"))}</strong><span>${allDone ? escapeHtml(tr("journeyCompleteNote")) : allSkipped ? escapeHtml(tr("allTopicsSkippedNote")) : escapeHtml(tr("allTopicsOpen"))}</span></div></div><div class="roadmap-progress-value"><strong>${formatNumber(progress.done)}<span> / ${formatNumber(progress.total)}</span></strong><span>${formatNumber(progress.percent)}${percentSymbol()} ${escapeHtml(tr("progress"))}</span></div>${progressMarkup(roadmap, true)}</section>
-        <div class="roadmap-guidance">${icon("layers")}<p>${escapeHtml(tr("mapHint"))}</p></div>
+        <div class="roadmap-guidance">${icon("layers")}<p>${escapeHtml(tr("mapHint"))}</p></div>${canEditContent() && adminEditMode ? `<div class="admin-edit-hint">${icon("edit")}<span>${escapeHtml(at("adminEditModeHint"))}</span></div>` : ""}
         ${allDone ? `<div class="journey-complete-banner">${icon("check")}<span>${escapeHtml(tr("journeyComplete"))}</span></div>` : ""}
         <div class="roadmap-workspace"><section class="roadmap-map" aria-label="${escapeHtml(tr("roadmapMap"))}"><svg class="map-connector-layer" aria-hidden="true"></svg>${roadmap.modules.map((module, moduleIndex) => renderMapRow(roadmap, module, moduleIndex, selectedId)).join("")}</section></div>${connectedPathsMarkup}
-      </div>${drawerTopic ? renderLearningPage(roadmap, drawerTopic) : ""}${inlineEditDraft?.id === roadmap.id ? renderInlineContentEditor() : ""}`;
+      </div>${drawerTopic ? renderLearningPage(roadmap, drawerTopic, params.get("concept") || "") : ""}${inlineEditDraft?.id === roadmap.id ? renderInlineContentEditor() : ""}`;
     drawMapConnectors();
   };
   const frameworkHints = {
@@ -850,10 +901,11 @@
     const previousFocusAction = previousFocus?.closest?.("[data-action]");
     const previousActionName = previousFocusAction?.dataset.action || "";
     const previousActionIndex = previousFocusAction?.dataset.index || "";
+    const route = parseRoute();
+    if (!canEditContent() || !["roadmap", "learn"].includes(route.page)) adminEditMode = false;
     setDocumentLanguage();
     document.getElementById("platformNavMobile").hidden = true;
     document.getElementById("menuToggle").setAttribute("aria-expanded", "false");
-    const route = parseRoute();
     document.body.classList.toggle("has-learning-drawer", route.page === "learn");
     if (route.page === "roadmap") {
       const roadmap = byId.get(route.id);
@@ -983,7 +1035,7 @@
     }
     if (target) target[parts.at(-1)] = value;
   };
-  const openInlineContentEditor = (roadmapId, moduleIndex = 0, topicIndex = 0) => {
+  const openInlineContentEditor = (roadmapId, moduleIndex = 0, topicIndex = 0, kind = "path", conceptIndex = 0) => {
     const roadmap = byId.get(roadmapId);
     if (!roadmap || !canEditContent()) return;
     inlineEditDraft = cloneContent(roadmap);
@@ -993,12 +1045,21 @@
     inlineEditDraft.modules?.forEach((module) => {
       module.title ||= { en: "", ar: "" };
       module.topics?.forEach((topic) => {
-      topic.title ||= { en: "", ar: "" };
-      topic.overview ||= { en: "", ar: "" };
-      topic.subtopics = (topic.subtopics || []).map((item) => typeof item === "string" ? { en: item, ar: "" } : { en: item?.en || "", ar: item?.ar || "" });
-      topic.resources = (topic.resources || []).map((item) => ({ ...item, title: typeof item?.title === "string" ? { en: item.title, ar: "" } : { en: item?.title?.en || "", ar: item?.title?.ar || "" }, url: item?.url || "" }));
+        topic.title ||= { en: "", ar: "" };
+        topic.overview ||= { en: "", ar: "" };
+        topic.subtopics = (topic.subtopics || []).map((item, index) => ({
+          ...(typeof item === "object" && item ? item : {}),
+          id: item?.id || `${topic.id}-concept-${index + 1}`,
+          en: typeof item === "string" ? item : item?.en || "",
+          ar: typeof item === "string" ? "" : item?.ar || "",
+          overview: { en: item?.overview?.en || "", ar: item?.overview?.ar || "" },
+          resources: (item?.resources || []).map((resource) => ({ ...resource, title: typeof resource?.title === "string" ? { en: resource.title, ar: "" } : { en: resource?.title?.en || "", ar: resource?.title?.ar || "" }, url: resource?.url || "" }))
+        }));
+        topic.resources = (topic.resources || []).map((item) => ({ ...item, title: typeof item?.title === "string" ? { en: item.title, ar: "" } : { en: item?.title?.en || "", ar: item?.title?.ar || "" }, url: item?.url || "" }));
       });
     });
+    inlineEditTarget = { kind };
+    inlineEditConceptIndex = Math.max(0, Number(conceptIndex) || 0);
     inlineEditBaseline = JSON.stringify(inlineEditDraft);
     inlineEditBusy = false;
     inlineEditError = "";
@@ -1014,12 +1075,48 @@
     render();
   };
   const inlineEditorTopic = () => inlineEditDraft?.modules?.[inlineEditModuleIndex]?.topics?.[inlineEditTopicIndex];
+  const inlineEditorConcept = () => inlineEditorTopic()?.subtopics?.[inlineEditConceptIndex];
+  const setInlineEditTarget = (kind, moduleIndex = inlineEditModuleIndex, topicIndex = inlineEditTopicIndex, conceptIndex = 0) => {
+    inlineEditTarget = { kind };
+    inlineEditModuleIndex = Math.max(0, Number(moduleIndex) || 0);
+    inlineEditTopicIndex = Math.max(0, Number(topicIndex) || 0);
+    inlineEditConceptIndex = Math.max(0, Number(conceptIndex) || 0);
+    inlineEditError = "";
+    render();
+  };
+  const addInlineTopic = () => {
+    const module = inlineEditDraft?.modules?.[inlineEditModuleIndex];
+    if (!module) return;
+    module.topics ||= [];
+    module.topics.push({ id: "", title: { en: "", ar: "" }, overview: { en: "", ar: "" }, subtopics: [], resources: [] });
+    inlineEditTopicIndex = module.topics.length - 1;
+    setInlineEditTarget("topic", inlineEditModuleIndex, inlineEditTopicIndex);
+  };
+  const addInlineConcept = () => {
+    const topic = inlineEditorTopic();
+    if (!topic) return;
+    topic.subtopics ||= [];
+    topic.subtopics.push({ id: `${topic.id}-concept-${topic.subtopics.length + 1}`, en: "", ar: "", overview: { en: "", ar: "" }, resources: [] });
+    inlineEditConceptIndex = topic.subtopics.length - 1;
+    setInlineEditTarget("subtopic", inlineEditModuleIndex, inlineEditTopicIndex, inlineEditConceptIndex);
+  };
+  const addInlineResourceToTarget = () => {
+    const collection = inlineEditTarget.kind === "subtopic" ? inlineEditorConcept()?.resources : inlineEditorTopic()?.resources;
+    if (!collection) return;
+    collection.push({ title: { en: "", ar: "" }, url: "" });
+    render();
+  };
+  const removeInlineResourceFromTarget = (index) => {
+    const collection = inlineEditTarget.kind === "subtopic" ? inlineEditorConcept()?.resources : inlineEditorTopic()?.resources;
+    if (!collection?.[index]) return;
+    collection.splice(index, 1);
+    render();
+  };
   const addInlineSubtopic = () => {
     const topic = inlineEditorTopic();
     if (!topic) return;
     topic.subtopics ||= [];
-    topic.subtopics.push({ en: "", ar: "" });
-    render();
+    addInlineConcept();
   };
   const addInlineResource = () => {
     const topic = inlineEditorTopic();
@@ -1033,6 +1130,27 @@
     if (!topic?.[collection]?.[index]) return;
     topic[collection].splice(index, 1);
     render();
+  };
+  const removeInlineTopic = (topicIndex = inlineEditTopicIndex) => {
+    const module = inlineEditDraft?.modules?.[inlineEditModuleIndex];
+    if (!module?.topics?.[topicIndex] || !window.confirm(at("removeTopicConfirm"))) return;
+    module.topics.splice(topicIndex, 1);
+    inlineEditTopicIndex = Math.max(0, Math.min(topicIndex, module.topics.length - 1));
+    setInlineEditTarget("module", inlineEditModuleIndex, inlineEditTopicIndex);
+  };
+  const removeInlineModule = () => {
+    if (!inlineEditDraft?.modules?.[inlineEditModuleIndex] || !window.confirm(at("removeModuleConfirm"))) return;
+    inlineEditDraft.modules.splice(inlineEditModuleIndex, 1);
+    inlineEditModuleIndex = Math.max(0, Math.min(inlineEditModuleIndex, inlineEditDraft.modules.length - 1));
+    inlineEditTopicIndex = 0;
+    setInlineEditTarget("path", inlineEditModuleIndex, 0);
+  };
+  const removeInlineConcept = (conceptIndex = inlineEditConceptIndex) => {
+    const topic = inlineEditorTopic();
+    if (!topic?.subtopics?.[conceptIndex] || !window.confirm(at("removeConceptConfirm"))) return;
+    topic.subtopics.splice(conceptIndex, 1);
+    inlineEditConceptIndex = Math.max(0, Math.min(conceptIndex, topic.subtopics.length - 1));
+    setInlineEditTarget("topic", inlineEditModuleIndex, inlineEditTopicIndex, inlineEditConceptIndex);
   };
   const saveInlineContent = async () => {
     if (!inlineEditDraft || !canEditContent() || inlineEditBusy) return;
@@ -1116,7 +1234,7 @@
     const topic = currentAdminTopic();
     if (!topic) return;
     topic.subtopics ||= [];
-    topic.subtopics.push({ en: "", ar: "" });
+    topic.subtopics.push({ id: `${topic.id || "topic"}-concept-${topic.subtopics.length + 1}`, en: "", ar: "", overview: { en: "", ar: "" }, resources: [] });
     finishAdminAction();
   };
   const adminAddResource = () => {
@@ -1300,6 +1418,9 @@
     if (!ordered.includes(topicId)) return;
     const currentStatus = topicStatus(roadmap, topicId);
     const nextStatus = currentStatus === status && ["done", "skip"].includes(status) ? "idle" : status;
+    mobileStatusTopic = "";
+    suppressLongPressClick = false;
+    suppressLongPressTopic = "";
     const sets = {
       learning: new Set(learningIds(roadmap)),
       done: new Set(completedIds(roadmap)),
@@ -1338,8 +1459,38 @@
   };
   const delegatedClick = (event) => {
     const action = event.target.closest("[data-action]");
+    if (mobileStatusTopic) {
+      const activeNode = [...root.querySelectorAll(".topic-node")].find((node) => node.dataset.topic === mobileStatusTopic);
+      if (!activeNode?.closest(".topic-item")?.contains(event.target)) {
+        mobileStatusTopic = "";
+        const item = activeNode?.closest(".topic-item");
+        item?.classList.remove("is-status-open");
+        item?.querySelector(".topic-status-controls")?.classList.remove("is-forced");
+      }
+    }
     if (!action) return;
     const name = action.dataset.action;
+    if (name === "toggle-admin-edit-mode") {
+      event.preventDefault();
+      if (!canEditContent()) return;
+      adminEditMode = !adminEditMode;
+      mobileStatusTopic = "";
+      render();
+      return;
+    }
+    if (name === "edit-selected-path") {
+      if (!adminEditMode || !canEditContent()) return;
+      event.preventDefault();
+      openInlineContentEditor(action.dataset.roadmap, 0, 0, "path");
+      return;
+    }
+    if (name === "open-learning-concept") {
+      if (adminEditMode && canEditContent()) {
+        event.preventDefault();
+        openInlineContentEditor(action.dataset.roadmap, action.dataset.module, action.dataset.topic, "subtopic", action.dataset.concept);
+      }
+      return;
+    }
     if (name === "account-toggle") {
       event.preventDefault();
       if (!contentStore.user) {
@@ -1383,6 +1534,26 @@
       return;
     }
     if (name === "close-content-editor") { event.preventDefault(); closeInlineContentEditor(); return; }
+    if (name === "inline-edit-child-module") { event.preventDefault(); setInlineEditTarget("module", Number(action.dataset.module), 0); return; }
+    if (name === "inline-edit-child-topic") { event.preventDefault(); setInlineEditTarget("topic", inlineEditModuleIndex, Number(action.dataset.topic)); return; }
+    if (name === "inline-edit-concept") { event.preventDefault(); setInlineEditTarget("subtopic", inlineEditModuleIndex, inlineEditTopicIndex, Number(action.dataset.concept)); return; }
+    if (name === "inline-back-to-parent") {
+      event.preventDefault();
+      setInlineEditTarget(inlineEditTarget.kind === "subtopic" ? "topic" : inlineEditTarget.kind === "topic" ? "module" : "path");
+      return;
+    }
+    if (name === "inline-add-module") {
+      event.preventDefault();
+      inlineEditDraft.modules ||= [];
+      inlineEditDraft.modules.push({ id: "", title: { en: "", ar: "" }, topics: [] });
+      setInlineEditTarget("module", inlineEditDraft.modules.length - 1, 0);
+      return;
+    }
+    if (name === "inline-remove-module") { event.preventDefault(); removeInlineModule(); return; }
+    if (name === "inline-add-topic") { event.preventDefault(); addInlineTopic(); return; }
+    if (name === "inline-remove-topic") { event.preventDefault(); removeInlineTopic(Number(action.dataset.topic ?? inlineEditTopicIndex)); return; }
+    if (name === "inline-remove-selected-topic") { event.preventDefault(); removeInlineTopic(); return; }
+    if (name === "inline-remove-selected-concept") { event.preventDefault(); removeInlineConcept(); return; }
     if (name === "open-full-editor") {
       event.preventDefault();
       if (inlineEditDraft && JSON.stringify(inlineEditDraft) !== inlineEditBaseline && !window.confirm(at("discardEdit"))) return;
@@ -1395,9 +1566,9 @@
       return;
     }
     if (name === "inline-add-subtopic") { event.preventDefault(); addInlineSubtopic(); return; }
-    if (name === "inline-add-resource") { event.preventDefault(); addInlineResource(); return; }
-    if (name === "inline-remove-subtopic") { event.preventDefault(); removeInlineItem("subtopics", Number(action.dataset.index)); return; }
-    if (name === "inline-remove-resource") { event.preventDefault(); removeInlineItem("resources", Number(action.dataset.index)); return; }
+    if (name === "inline-add-resource") { event.preventDefault(); addInlineResourceToTarget(); return; }
+    if (name === "inline-remove-subtopic") { event.preventDefault(); removeInlineConcept(Number(action.dataset.index)); return; }
+    if (name === "inline-remove-resource") { event.preventDefault(); removeInlineResourceFromTarget(Number(action.dataset.index)); return; }
     if (name.startsWith("admin-")) {
       event.preventDefault();
       if (name === "admin-login") adminLogin();
@@ -1429,6 +1600,18 @@
       event.preventDefault();
       const roadmap = byId.get(action.dataset.roadmap);
       const topicId = action.dataset.topic;
+      if (name === "open-topic" && suppressLongPressClick && suppressLongPressTopic === topicId) {
+        suppressLongPressClick = false;
+        suppressLongPressTopic = "";
+        return;
+      }
+      if (adminEditMode && canEditContent()) {
+        if (name === "open-module") openInlineContentEditor(action.dataset.roadmap, action.dataset.module, 0, "module");
+        else {
+          openInlineContentEditor(action.dataset.roadmap, action.dataset.moduleIndex, action.dataset.topicIndex, "topic");
+        }
+        return;
+      }
       if (roadmap && topicList(roadmap).some(({ topic }) => topic.id === topicId)) {
         focusTopicAfterRender = true;
         setHash(roadmapHref(roadmap, topicId), true);
@@ -1452,7 +1635,47 @@
     if (name === "focus-search") { searchInput.focus(); window.scrollTo({ top: 0, behavior: "smooth" }); }
   };
 
+  document.addEventListener("pointerdown", (event) => {
+    const node = event.target.closest?.('.topic-node[data-action="open-topic"]');
+    if (event.pointerType !== "touch" || !node || canEditContent() && adminEditMode) return;
+    window.clearTimeout(mobileStatusTimer);
+    mobilePointerStart = { x: event.clientX, y: event.clientY, topic: node.dataset.topic };
+    mobileStatusTimer = window.setTimeout(() => {
+      if (!mobilePointerStart) return;
+      mobileStatusTopic = mobilePointerStart.topic;
+      suppressLongPressClick = true;
+      suppressLongPressTopic = mobilePointerStart.topic;
+      render();
+      window.setTimeout(() => { suppressLongPressClick = false; suppressLongPressTopic = ""; }, 900);
+    }, 560);
+  }, { passive: true });
+  document.addEventListener("pointermove", (event) => {
+    if (event.pointerType !== "touch" || !mobilePointerStart) return;
+    if (Math.hypot(event.clientX - mobilePointerStart.x, event.clientY - mobilePointerStart.y) > 12) {
+      window.clearTimeout(mobileStatusTimer);
+      mobileStatusTimer = 0;
+      mobilePointerStart = null;
+    }
+  }, { passive: true });
+  const clearMobileLongPress = () => {
+    window.clearTimeout(mobileStatusTimer);
+    mobileStatusTimer = 0;
+    mobilePointerStart = null;
+  };
+  document.addEventListener("pointerup", clearMobileLongPress, { passive: true });
+  document.addEventListener("pointercancel", clearMobileLongPress, { passive: true });
+  document.addEventListener("contextmenu", (event) => {
+    if (suppressLongPressClick && event.target.closest?.(".topic-node")?.dataset.topic === suppressLongPressTopic) event.preventDefault();
+  });
+
   document.addEventListener("click", delegatedClick);
+  document.addEventListener("keydown", (event) => {
+    const target = event.target.closest?.('[data-action="edit-selected-path"][role="button"]');
+    if (target && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      openInlineContentEditor(target.dataset.roadmap, 0, 0, "path");
+    }
+  });
   document.addEventListener("input", (event) => {
     const field = event.target.closest("[data-admin-path]");
     if (field) setAdminValue(field.dataset.adminPath, field.value);
@@ -1595,6 +1818,7 @@
   setDocumentLanguage();
   if (!location.hash) history.replaceState(null, "", "#/home");
   render();
+  document.documentElement.classList.remove("app-hydrating");
   const adminToast = sessionStorage.getItem("atlas-admin-notice");
   if (adminToast) {
     sessionStorage.removeItem("atlas-admin-notice");
