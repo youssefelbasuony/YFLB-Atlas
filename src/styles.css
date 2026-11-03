@@ -336,7 +336,7 @@ body.has-learning-drawer { overflow: hidden; }
 .practice-output { display: flex; align-items: flex-start; gap: 0.58rem; margin-block-start: 0.65rem; padding: 0.62rem; border-inline-start: 3px solid var(--color-accent); border-radius: 0.2rem var(--radius-sm) var(--radius-sm) 0.2rem; background: color-mix(in srgb, var(--color-accent) 9%, var(--color-surface)); }
 .practice-output > span { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface)); color: var(--color-warning); }
 .practice-output > span svg { width: 14px; height: 14px; }
-.practice-output > div { display: grid; gap: 0.08rem; }
+.practice-output > div { display: grid; min-width: 0; flex: 1; gap: 0.08rem; }
 .practice-output strong { font-size: 0.7rem; }
 .practice-output > div span { color: var(--color-muted); font-size: 0.66rem; }
 .resource-links { display: grid; gap: 0.32rem; margin-block-start: 0.62rem; }
@@ -636,8 +636,8 @@ html[dir="rtl"] .auth-card h1 { letter-spacing: 0; }
 .practice-card { background: var(--color-surface); }
 .practice-output { align-items: center; margin-block-start: 0.75rem; padding: 0.85rem; border: 1px solid color-mix(in srgb, var(--color-secondary) 18%, var(--color-border)); border-inline-start: 3px solid var(--color-secondary); border-radius: 0.72rem; background: var(--color-surface-subtle); }
 .practice-output > span { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 0.6rem; background: color-mix(in srgb, var(--color-secondary) 12%, var(--color-surface)); color: var(--color-info); }
-.practice-output > div { display: grid; gap: 0.12rem; }
-.practice-output > div span { color: var(--color-muted); font-size: 0.7rem; line-height: 1.5; }
+.practice-output > div { display: grid; min-width: 0; flex: 1; gap: 0.12rem; }
+.practice-output > div span { color: var(--color-muted); font-size: 0.7rem; line-height: 1.5; overflow-wrap: anywhere; }
 .learning-resources .resource-links { gap: 0.25rem; margin-block-start: 0.8rem; }
 .learning-resources .resource-links a, .learning-resources .resource-links button { min-height: 43px; padding-inline: 0.48rem; }
 .learning-resources .resource-links span { font-size: 0.7rem; line-height: 1.4; }
