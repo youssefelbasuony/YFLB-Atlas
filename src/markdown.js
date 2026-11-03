@@ -104,7 +104,9 @@
         const renderCell = (cell, cellIndex, header = false) => {
           const tag = header ? "th" : "td";
           const align = alignments[cellIndex] ? ` data-align="${alignments[cellIndex]}"` : "";
-          return `<${tag}${header ? ' scope="col"' : ""}${align} dir="auto">${inlineMarkdown(cell || "")}</${tag}>`;
+          if (header) return `<th scope="col"${align} dir="auto">${inlineMarkdown(cell || "")}</th>`;
+          const label = escapeHtml(headingText(headerCells[cellIndex] || ""));
+          return `<td${align} dir="auto"><span class="markdown-table-cell-label" aria-hidden="true">${label}</span><span class="markdown-table-cell-value">${inlineMarkdown(cell || "")}</span></td>`;
         };
         const table = `<table><thead><tr>${headerCells.map((cell, cellIndex) => renderCell(cell, cellIndex, true)).join("")}</tr></thead><tbody>${bodyRows.map((row) => `<tr>${headerCells.map((_, cellIndex) => renderCell(row[cellIndex] || "", cellIndex)).join("")}</tr>`).join("")}</tbody></table>`;
         blocks.push(`<div class="markdown-table-wrap" role="region" tabindex="0" aria-label="${escapeHtml(options.tableLabel || "Scrollable table")}">${table}</div>`);
