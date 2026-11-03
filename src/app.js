@@ -116,6 +116,7 @@
   let focusTopicAfterRender = false;
   let scrollToTopAfterRender = false;
   let toastTimer = 0;
+  let googleSignInPending = false;
   let searchIndexCache = null;
   let adminDraft = null;
   let adminSelectedId = "";
@@ -1061,6 +1062,18 @@
     toast.classList.add("is-visible");
     toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
   };
+  const signInErrorMessage = (error) => {
+    const messageKeys = {
+      "auth/cancelled-popup-request": "signInPopupAlreadyOpen",
+      "auth/popup-blocked": "signInPopupBlocked",
+      "auth/popup-closed-by-user": "signInPopupClosed",
+      "auth/unauthorized-domain": "signInDomainNotAllowed",
+      "auth/operation-not-allowed": "signInGoogleDisabled"
+    };
+    const key = messageKeys[error?.code];
+    const message = tr(key || "signInError");
+    return key || !error?.code ? message : `${message} (${error.code})`;
+  };
   const copyStudyPrompt = async (roadmap, topicId) => {
     const found = topicIndex.get(topicId);
     if (!found || found.roadmap.id !== roadmap.id) return;
@@ -1151,8 +1164,22 @@
     }
     if (name === "google-sign-in") {
       event.preventDefault();
-      if (!contentStore.configured) return;
-      contentStore.signIn().catch(() => showToast(tr("signInError")));
+      if (!contentStore.configured || googleSignInPending) return;
+      googleSignInPending = true;
+      action.disabled = true;
+      action.setAttribute("aria-busy", "true");
+      const label = action.querySelector("span");
+      if (label) label.textContent = tr("signInOpening");
+      contentStore.signIn()
+        .catch((error) => showToast(signInErrorMessage(error)))
+        .finally(() => {
+          googleSignInPending = false;
+          if (action.isConnected && !contentStore.user) {
+            action.disabled = false;
+            action.removeAttribute("aria-busy");
+            if (label) label.textContent = tr("authGoogle");
+          }
+        });
       return;
     }
     if (name === "account-signout") {

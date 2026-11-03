@@ -47,6 +47,7 @@ export async function createContentStore(config) {
   provider.setCustomParameters({ prompt: "select_account" });
   let currentUser = null;
   let redirectError = null;
+  let signInRequest = null;
 
   try {
     const result = await getRedirectResult(auth);
@@ -100,9 +101,15 @@ export async function createContentStore(config) {
       };
       await setDoc(doc(db, USER_STATE_COLLECTION, userId), personalState);
     },
-    async signIn() {
-      if (matchMedia("(pointer: coarse)").matches) return signInWithRedirect(auth, provider);
-      return signInWithPopup(auth, provider);
+    signIn() {
+      if (signInRequest) return signInRequest;
+      if (matchMedia("(pointer: coarse)").matches) {
+        signInRequest = signInWithRedirect(auth, provider);
+        signInRequest.catch(() => { signInRequest = null; });
+        return signInRequest;
+      }
+      signInRequest = signInWithPopup(auth, provider);
+      return signInRequest.finally(() => { signInRequest = null; });
     },
     async signOut() { return signOut(auth); },
     async save(roadmap) {
