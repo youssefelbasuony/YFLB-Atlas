@@ -114,6 +114,7 @@
     document.querySelector("meta[name='application-name']").content = tr("appName");
     document.querySelector("meta[property='og:site_name']").content = tr("appName");
     document.querySelector("meta[property='og:title']").content = tr("pageTitle");
+    document.querySelector("meta[property='og:description']").content = tr("metaDescription");
     document.title = tr("pageTitle");
     syncNavigation();
   };
