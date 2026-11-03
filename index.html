@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#183244" />
+    <meta name="description" content="Explore connected professional learning roadmaps." />
+    <title>Atlas — Follow a clear learning path</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Crimson+Pro:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="src/tokens.css" />
+    <link rel="stylesheet" href="src/styles.css" />
+    <script defer src="src/data.js"></script>
+    <script defer src="src/roadmap-library.js"></script>
+    <script defer src="src/roadmap-expansion.js"></script>
+    <script defer src="src/roadmap-depth.js"></script>
+    <script defer src="src/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content" data-i18n="skip">Skip to main content</a>
+    <div class="platform-shell">
+      <header class="platform-header">
+        <a class="platform-brand" href="#/home" aria-label="Atlas" data-i18n-aria="brand">
+          <img src="assets/logos/YFLB-logo-white.svg" alt="Official YFLB logo" data-i18n-alt="brandAlt" />
+          <span class="brand-divider" aria-hidden="true"></span>
+          <span class="brand-name" data-i18n="brand">Atlas</span>
+        </a>
+        <nav class="platform-nav" aria-label="Main navigation" data-i18n-aria="primaryNav">
+          <a href="#/paths" data-route="paths" data-i18n="navRoadmaps">Roadmaps</a>
+          <a href="#/learning" data-route="learning" data-i18n="navLearning">My learning</a>
+          <a href="#/saved" data-route="saved" data-i18n="navSaved">Saved</a>
+        </nav>
+        <div class="platform-tools">
+          <div class="search-wrap" id="searchWrap">
+            <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg></span>
+            <input id="globalSearch" type="search" placeholder="What do you want to learn today?" aria-label="Search roadmaps and topics" data-i18n-placeholder="searchPlaceholder" data-i18n-aria="search" aria-controls="searchResults" aria-expanded="false" autocomplete="off" />
+            <kbd aria-hidden="true">Ctrl K</kbd>
+            <div class="search-results" id="searchResults" role="listbox" aria-label="Search results" data-i18n-aria="searchResults" hidden></div>
+          </div>
+          <button class="icon-button" id="languageToggle" type="button" aria-label="Change language" title="Change language" data-i18n-aria="language" data-i18n-title="language"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0-18"/></svg></button>
+          <button class="icon-button" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+          <button class="icon-button compact-menu" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="platformNavMobile" data-i18n-aria="menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        </div>
+      </header>
+      <nav class="mobile-nav" id="platformNavMobile" aria-label="Main navigation" hidden>
+        <a href="#/paths" data-route="paths" data-i18n="navRoadmaps">Roadmaps</a>
+        <a href="#/learning" data-route="learning" data-i18n="navLearning">My learning</a>
+        <a href="#/saved" data-route="saved" data-i18n="navSaved">Saved</a>
+      </nav>
+      <main id="main-content" class="page-content" tabindex="-1" aria-live="polite"></main>
+      <footer class="platform-footer"><a class="footer-brand-lockup" href="#/home" aria-label="Atlas" data-i18n-aria="brand"><span class="footer-logo-plate"><img class="footer-brand-logo" src="assets/logos/YFLB-logo-black.svg" alt="" aria-hidden="true" /></span><span class="brand-divider" aria-hidden="true"></span><span class="brand-name" data-i18n="brand">Atlas</span></a><span data-i18n="sourceNote">A self-paced learning guide. It is not a degree or professional certification.</span></footer>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>

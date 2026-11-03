@@ -1,0 +1,7 @@
+/.vercel/
+/node_modules/
+/tmp/
+/assets/sources/
+.env
+.env.*
+!.env.example
