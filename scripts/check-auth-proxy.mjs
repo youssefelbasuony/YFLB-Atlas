@@ -3,8 +3,22 @@ import { readFile } from "node:fs/promises";
 
 const origin = (process.env.ATLAS_ORIGIN || "https://yflb-atlas.vercel.app").replace(/\/+$/, "");
 const configSource = await readFile(new URL("../src/firebase-config.js", import.meta.url), "utf8");
+const storeSource = await readFile(new URL("../src/content-store.js", import.meta.url), "utf8");
+const rulesSource = await readFile(new URL("../firestore.rules", import.meta.url), "utf8");
 const apiKey = configSource.match(/apiKey:\s*"([^"]+)"/)?.[1];
 assert.ok(apiKey, "Firebase API key was not found in src/firebase-config.js");
+
+const editorDeclaration = storeSource.match(/const EDITORS = new Set\(\[(.*?)\]\);/s)?.[1] || "";
+const frontendEditors = [...editorDeclaration.matchAll(/"([^"]+)"/g)].map((match) => match[1].toLowerCase());
+const backendEditorBlock = rulesSource.match(/request\.auth\.token\.email in \[([\s\S]*?)\]/)?.[1] || "";
+const backendEditors = [...backendEditorBlock.matchAll(/'([^']+)'/g)].map((match) => match[1].toLowerCase());
+const adminEmail = "youssefelbasuony1@gmail.com";
+const ordinaryEmail = "youssefelbasuony2@gmail.com";
+assert.ok(frontendEditors.includes(adminEmail) && backendEditors.includes(adminEmail), "Admin account must be allowlisted in the app and Firestore rules.");
+assert.ok(!frontendEditors.includes(ordinaryEmail) && !backendEditors.includes(ordinaryEmail), "Ordinary account must not have content-editing access.");
+assert.match(storeSource, /user\?\.emailVerified\s*&&\s*EDITORS\.has/, "The app must require a verified email for editor access.");
+assert.match(rulesSource, /request\.auth\.token\.email_verified == true/, "Firestore must require a verified email for editor writes.");
+console.log("PASS editor policy: admin allowlisted; ordinary account excluded in app and Firestore rules");
 
 const query = new URLSearchParams({
   apiKey,
