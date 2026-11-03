@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/__/auth/:path*/",
+      "destination": "/__/auth/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/__/auth/:path*",
@@ -11,6 +18,5 @@
     }
   ],
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "trailingSlash": true
+  "outputDirectory": "dist"
 }
