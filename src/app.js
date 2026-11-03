@@ -567,7 +567,7 @@
     state.started = [...new Set([...state.started, roadmap.id])];
     persist();
     return `<div class="learning-drawer-layer"><button class="learning-drawer-scrim" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}"></button><aside class="learning-drawer" role="dialog" aria-modal="true" aria-labelledby="selectedTopicTitle"><div class="learning-page">
-      <header class="learning-page-toolbar"><div class="learning-page-status">${topicStatusControls(roadmap, topic)}</div><div class="learning-toolbar-actions">${canEditContent() ? `<button class="learning-edit-trigger ${adminEditMode ? "is-active" : ""}" type="button" data-action="toggle-admin-edit-mode" aria-pressed="${adminEditMode}" aria-label="${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}" title="${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}">${icon("edit")}<span>${escapeHtml(adminEditMode ? at("finishEditing") : at("editMode"))}</span></button>` : ""}<button class="panel-close" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}">${icon("close")}</button></div></header>
+      <header class="learning-page-toolbar"><div class="learning-page-status">${topicStatusControls(roadmap, topic)}</div><div class="learning-toolbar-actions">${canEditContent() ? `<button class="learning-edit-trigger" type="button" data-action="edit-current-learning-item" aria-label="${escapeHtml(at("editContent"))}" title="${escapeHtml(at("editContent"))}">${icon("edit")}<span>${escapeHtml(at("editContent"))}</span></button>` : ""}<button class="panel-close" type="button" data-action="return-to-map" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}" aria-label="${escapeHtml(tr("backToMap"))}">${icon("close")}</button></div></header>
       <div class="learning-page-progress">${progressMarkup(roadmap, true)}</div>
       <main class="learning-panel learning-page-content" id="learningPanel" aria-labelledby="selectedTopicTitle">
         <nav class="breadcrumbs learning-breadcrumbs" aria-label="${escapeHtml(tr("breadcrumbs"))}"><a href="${categoryHref("all")}">${escapeHtml(tr("allRoadmaps"))}</a><span aria-hidden="true">/</span><a href="${categoryHref(roadmap.category)}">${escapeHtml(categoryName(roadmap.category))}</a><span aria-hidden="true">/</span><a href="${backHref}">${escapeHtml(roadmapTitle)}</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(selectedConcept ? `${topicTitle} / ${title}` : title)}</span></nav>
@@ -895,6 +895,9 @@
     const previousContentDialog = root.querySelector("#contentEditDialog");
     const previousEditorBody = previousContentDialog?.querySelector(".content-edit-body");
     const editorScrollTop = previousContentDialog?.open ? previousEditorBody?.scrollTop || 0 : 0;
+    const previousLearningDrawer = root.querySelector(".learning-drawer");
+    const learningDrawerScrollTop = previousLearningDrawer?.scrollTop || 0;
+    const hadLearningDrawer = Boolean(previousLearningDrawer);
     const previousFocus = previousContentDialog?.contains(document.activeElement) ? document.activeElement : null;
     const previousFocusPath = previousFocus?.dataset?.inlinePath || "";
     const previousFocusId = previousFocus?.id || "";
@@ -930,6 +933,8 @@
     } else {
       renderHome();
     }
+    const learningDrawer = root.querySelector(".learning-drawer");
+    if (learningDrawer && hadLearningDrawer) learningDrawer.scrollTop = learningDrawerScrollTop;
     const contentDialog = root.querySelector("#contentEditDialog");
     if (contentDialog && !contentDialog.open) {
       contentDialog.showModal();
@@ -1482,6 +1487,22 @@
       if (!adminEditMode || !canEditContent()) return;
       event.preventDefault();
       openInlineContentEditor(action.dataset.roadmap, 0, 0, "path");
+      return;
+    }
+    if (name === "edit-current-learning-item") {
+      event.preventDefault();
+      if (!canEditContent()) return;
+      const route = parseRoute();
+      const roadmap = byId.get(route.id);
+      const selected = roadmap && topicList(roadmap).find(({ topic }) => topic.id === route.params.get("topic"));
+      if (!selected) return;
+      const { module, topic } = selected;
+      const moduleIndex = roadmap.modules.indexOf(module);
+      const topicIndex = module.topics.indexOf(topic);
+      const conceptId = route.params.get("concept");
+      const conceptIndex = conceptId ? (topic.subtopics || []).findIndex((_, index) => conceptIdFor(topic, index) === conceptId) : -1;
+      if (conceptIndex >= 0) openInlineContentEditor(roadmap.id, moduleIndex, topicIndex, "subtopic", conceptIndex);
+      else openInlineContentEditor(roadmap.id, moduleIndex, topicIndex, "topic");
       return;
     }
     if (name === "open-learning-concept") {
