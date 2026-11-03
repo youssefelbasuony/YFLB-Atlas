@@ -1,0 +1,18 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "YFLB Atlas",
+        "supportEmail": "youssefelbasuony1@gmail.com",
+        "authorizedRedirectUris": [
+          "https://yflb-atlas-content-261103.firebaseapp.com/__/auth/handler",
+          "http://localhost"
+        ]
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

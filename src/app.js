@@ -1,8 +1,18 @@
-(() => {
+(async () => {
   "use strict";
 
   const DATA = window.AtlasData;
   if (!DATA) return;
+
+  let contentStore = { configured: false, user: null, isEditor: () => false };
+  let contentLoadError = null;
+  try {
+    const cms = await import("./content-store.js");
+    contentStore = await cms.createContentStore(window.ATLAS_FIREBASE_CONFIG);
+    if (contentStore.configured) await contentStore.load(DATA.roadmaps);
+  } catch (error) {
+    contentLoadError = error;
+  }
 
   const { copy, CATEGORIES, roadmaps, featured } = DATA;
   const root = document.getElementById("main-content");
@@ -54,9 +64,15 @@
   let scrollToTopAfterRender = false;
   let toastTimer = 0;
   let searchIndexCache = null;
+  let adminDraft = null;
+  let adminSelectedId = "";
+  let adminModuleIndex = 0;
+  let adminTopicIndex = 0;
+  let adminBusy = false;
+  let adminNotice = "";
 
   const tr = (key) => copy[state.language][key] ?? copy.en[key] ?? key;
-  const localized = (value) => value?.[state.language] ?? "";
+  const localized = (value) => typeof value === "string" ? value : value?.[state.language] ?? value?.en ?? "";
   const formatNumber = (value) => new Intl.NumberFormat(state.language === "ar" ? "ar-EG" : "en").format(value);
   const percentSymbol = () => state.language === "ar" ? "٪" : "%";
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -368,9 +384,10 @@
     const moduleTitle = localized(module.title);
     const roadmapTitle = localized(roadmap.title);
     const microTopics = topic.subtopics || [];
-    const overview = state.language === "ar"
+    const overview = localized(topic.overview).trim() || (state.language === "ar"
       ? `يتناول هذا الموضوع «${title}» من خلال ${microTopics.map(localized).join("، ")}. تساعدك هذه المفاهيم على فهم علاقتها بـ«${moduleTitle}» وتطبيقها ضمن مجال «${roadmapTitle}».`
-      : `This topic covers ${title} through ${microTopics.map(localized).join(", ")}. These concepts help explain how it connects to ${moduleTitle} and where it is used in ${roadmapTitle}.`;
+      : `This topic covers ${title} through ${microTopics.map(localized).join(", ")}. These concepts help explain how it connects to ${moduleTitle} and where it is used in ${roadmapTitle}.`);
+    const customResources = (topic.resources || []).filter((resource) => resource?.url && /^https:\/\//i.test(resource.url));
     const backHref = roadmapHref(roadmap, topic.id);
     state.started = [...new Set([...state.started, roadmap.id])];
     persist();
@@ -383,8 +400,110 @@
       <section class="topic-overview"><h2>${escapeHtml(tr("topicOverview"))}</h2><p>${escapeHtml(overview)}</p></section>
       <section class="detail-section"><h2>${escapeHtml(tr("whatToLearn"))}</h2><p>${escapeHtml(tr("learnNote"))}</p><div class="subtopic-links">${microTopics.map((subtopic) => `<a class="subtopic-link" href="${resourceUrl("articles", localized(subtopic), `${title} ${moduleTitle}`, roadmap)}" target="_blank" rel="noopener noreferrer"><span>${escapeHtml(localized(subtopic))}</span>${icon("arrow")}</a>`).join("")}</div></section>
       <section class="detail-section practice-section"><h2>${escapeHtml(tr("practice"))}</h2><p>${escapeHtml(tr("practiceNote"))}</p><div class="practice-output"><span>${icon("check")}</span><div><strong>${escapeHtml(tr("checkpointOutput"))}</strong><span>${escapeHtml(tr("checkpointOutputNote"))}</span></div></div></section>
-      <section class="detail-section"><h2>${escapeHtml(tr("resources"))}</h2><p>${escapeHtml(tr("searchNote"))}</p><div class="resource-links"><a href="${resourceUrl("official", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchOfficial"))}</span>${icon("arrow")}</a><a href="${resourceUrl("articles", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchArticles"))}</span>${icon("arrow")}</a><a href="${resourceUrl("videos", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>${escapeHtml(tr("searchVideos"))}</span>${icon("arrow")}</a><a href="${resourceUrl("academic", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("chart")}<span>${escapeHtml(tr("searchAcademic"))}</span>${icon("arrow")}</a><button type="button" data-action="copy-prompt" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}">${icon("spark")}<span>${escapeHtml(tr("studyPrompt"))}</span>${icon("arrow")}</button></div></section>
+      <section class="detail-section"><h2>${escapeHtml(tr("resources"))}</h2><p>${escapeHtml(tr("searchNote"))}</p><div class="resource-links">${customResources.map((resource) => `<a href="${escapeHtml(resource.url)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(localized(resource.title) || resource.url)}</span>${icon("arrow")}</a>`).join("")}<a href="${resourceUrl("official", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchOfficial"))}</span>${icon("arrow")}</a><a href="${resourceUrl("articles", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("book")}<span>${escapeHtml(tr("searchArticles"))}</span>${icon("arrow")}</a><a href="${resourceUrl("videos", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("play")}<span>${escapeHtml(tr("searchVideos"))}</span>${icon("arrow")}</a><a href="${resourceUrl("academic", title, moduleTitle, roadmap)}" target="_blank" rel="noopener noreferrer">${icon("chart")}<span>${escapeHtml(tr("searchAcademic"))}</span>${icon("arrow")}</a><button type="button" data-action="copy-prompt" data-roadmap="${escapeHtml(roadmap.id)}" data-topic="${escapeHtml(topic.id)}">${icon("spark")}<span>${escapeHtml(tr("studyPrompt"))}</span>${icon("arrow")}</button></div></section>
       <p class="detail-footnote">${escapeHtml(tr("selfPacedNote"))}</p></main></div></aside></div>`;
+  };
+  const adminCopy = {
+    en: {
+      title: "Content editor", intro: "Edit a roadmap and publish it for everyone. Changes appear after visitors refresh.",
+      login: "Sign in with Google", loginNote: "Only the two approved Atlas editors can publish changes.", signedOut: "Sign out", unauthorized: "This Google account is not on the Atlas editor list.",
+      choose: "Choose a roadmap", addRoadmap: "Add a roadmap", roadmap: "Roadmap", category: "Field", titleEn: "Title in English", titleAr: "Title in Arabic", summaryEn: "Summary in English", summaryAr: "Summary in Arabic",
+      module: "Main topic", chooseModule: "Choose a main topic", addModule: "Add main topic", removeModule: "Remove main topic", moduleTitleEn: "Main topic title in English", moduleTitleAr: "Main topic title in Arabic",
+      checkpoint: "Learning topic", chooseCheckpoint: "Choose a learning topic", addCheckpoint: "Add learning topic", removeCheckpoint: "Remove learning topic", topicTitleEn: "Topic title in English", topicTitleAr: "Topic title in Arabic", overviewEn: "Explanation in English", overviewAr: "Explanation in Arabic",
+      subtopics: "Smaller concepts to explore", subtopicEn: "Concept in English", subtopicAr: "Concept in Arabic", addSubtopic: "Add concept", remove: "Remove", sources: "Your sources", sourceTitleEn: "Source label in English", sourceTitleAr: "Source label in Arabic", sourceUrl: "Source link (https://)", addSource: "Add source",
+      save: "Publish changes", deleteRoadmap: "Remove this roadmap", saveNote: "Your published edits become visible to all visitors.", saved: "Published. Visitors will see it after refreshing.", saving: "Publishing…", createTitle: "New roadmap", config: "The content editor is still being connected.",
+      loadError: "Could not load published edits. The original roadmap content is still available.", invalid: "Add an English title before publishing.",
+    },
+    ar: {
+      title: "محرر المحتوى", intro: "عدّل المسار وانشره ليظهر للجميع. تظهر التعديلات بعد تحديث الصفحة.",
+      login: "سجّل الدخول بحساب Google", loginNote: "النشر متاح للبريدين المعتمدين لإدارة أطلس فقط.", signedOut: "تسجيل الخروج", unauthorized: "هذا الحساب غير مضاف إلى قائمة محرري أطلس.",
+      choose: "اختر مساراً", addRoadmap: "إضافة مسار", roadmap: "المسار", category: "المجال", titleEn: "العنوان بالإنجليزية", titleAr: "العنوان بالعربية", summaryEn: "النبذة بالإنجليزية", summaryAr: "النبذة بالعربية",
+      module: "موضوع رئيسي", chooseModule: "اختر موضوعاً رئيسياً", addModule: "إضافة موضوع رئيسي", removeModule: "حذف الموضوع الرئيسي", moduleTitleEn: "عنوان الموضوع الرئيسي بالإنجليزية", moduleTitleAr: "عنوان الموضوع الرئيسي بالعربية",
+      checkpoint: "موضوع للتعلم", chooseCheckpoint: "اختر موضوعاً للتعلم", addCheckpoint: "إضافة موضوع للتعلم", removeCheckpoint: "حذف موضوع التعلم", topicTitleEn: "عنوان الموضوع بالإنجليزية", topicTitleAr: "عنوان الموضوع بالعربية", overviewEn: "الشرح بالإنجليزية", overviewAr: "الشرح بالعربية",
+      subtopics: "مفاهيم فرعية للبحث والتعلم", subtopicEn: "المفهوم بالإنجليزية", subtopicAr: "المفهوم بالعربية", addSubtopic: "إضافة مفهوم", remove: "حذف", sources: "مصادرك", sourceTitleEn: "اسم المصدر بالإنجليزية", sourceTitleAr: "اسم المصدر بالعربية", sourceUrl: "رابط المصدر (https://)", addSource: "إضافة مصدر",
+      save: "نشر التعديلات", deleteRoadmap: "حذف هذا المسار", saveNote: "تظهر التعديلات المنشورة لكل الزوار.", saved: "تم النشر. تظهر التعديلات للزوار بعد تحديث الصفحة.", saving: "جارٍ النشر…", createTitle: "مسار جديد", config: "يجري إعداد محرر المحتوى.",
+      loadError: "تعذر تحميل التعديلات المنشورة. ما زال محتوى المسارات الأصلي متاحاً.", invalid: "أضف عنواناً بالإنجليزية قبل النشر.",
+    }
+  };
+  const at = (key) => adminCopy[state.language][key] || adminCopy.en[key] || key;
+  const cloneContent = (value) => JSON.parse(JSON.stringify(value));
+  const adminField = (label, path, value, multiline = false) => `<label class="cms-field"><span>${escapeHtml(label)}</span>${multiline
+    ? `<textarea data-admin-path="${escapeHtml(path)}" rows="3">${escapeHtml(value || "")}</textarea>`
+    : `<input data-admin-path="${escapeHtml(path)}" value="${escapeHtml(value || "")}" />`}</label>`;
+  const newRoadmapDraft = () => ({ id: "", category: "business", title: { en: "", ar: "" }, summary: { en: "", ar: "" }, modules: [{ id: "", title: { en: "", ar: "" }, topics: [{ id: "", title: { en: "", ar: "" }, overview: { en: "", ar: "" }, subtopics: [], resources: [] }] }] });
+  const ensureAdminDraft = (routeId) => {
+    if (routeId === "new") {
+      if (adminSelectedId !== "__new__" || !adminDraft) {
+        adminSelectedId = "__new__";
+        adminDraft = newRoadmapDraft();
+        adminModuleIndex = 0;
+        adminTopicIndex = 0;
+      }
+      return;
+    }
+    const desiredId = routeId && byId.has(routeId) ? routeId : (adminSelectedId && byId.has(adminSelectedId) ? adminSelectedId : roadmaps[0]?.id);
+    if (desiredId && (adminSelectedId !== desiredId || !adminDraft)) {
+      adminSelectedId = desiredId;
+      adminDraft = cloneContent(byId.get(desiredId));
+      adminModuleIndex = 0;
+      adminTopicIndex = 0;
+    }
+  };
+  const setAdminValue = (path, value) => {
+    const parts = path.split(".");
+    let target = adminDraft;
+    for (const part of parts.slice(0, -1)) {
+      if (target?.[part] === undefined) return;
+      target = target[part];
+    }
+    if (target) target[parts.at(-1)] = value;
+  };
+  const adminOptions = (items, selected, placeholder) => `<option value="">${escapeHtml(placeholder)}</option>${items.map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}`;
+  const renderAdmin = (routeId = "") => {
+    ensureAdminDraft(routeId);
+    const signedIn = contentStore.user;
+    if (!contentStore.configured) {
+      root.innerHTML = `<section class="cms-gate"><span class="eyebrow">YFLB Atlas</span><h1>${escapeHtml(at("title"))}</h1><p>${escapeHtml(at("config"))}</p></section>`;
+      return;
+    }
+    if (!signedIn) {
+      root.innerHTML = `<section class="cms-gate"><span class="eyebrow">YFLB Atlas</span><h1>${escapeHtml(at("title"))}</h1><p>${escapeHtml(at("intro"))}</p>${contentLoadError ? `<p class="cms-alert">${escapeHtml(at("loadError"))}</p>` : ""}<div class="cms-login-card"><p>${escapeHtml(at("loginNote"))}</p><button class="button button-primary" type="button" data-action="admin-login">${escapeHtml(at("login"))}</button></div></section>`;
+      return;
+    }
+    if (!contentStore.isEditor(signedIn)) {
+      root.innerHTML = `<section class="cms-gate"><h1>${escapeHtml(at("title"))}</h1><p class="cms-alert">${escapeHtml(at("unauthorized"))}</p><button class="button button-secondary" type="button" data-action="admin-logout">${escapeHtml(at("signedOut"))}</button></section>`;
+      return;
+    }
+    if (!adminDraft) {
+      root.innerHTML = `<section class="cms-gate"><h1>${escapeHtml(at("title"))}</h1><button class="button button-primary" type="button" data-action="admin-new">${escapeHtml(at("addRoadmap"))}</button></section>`;
+      return;
+    }
+    const modules = adminDraft.modules || (adminDraft.modules = []);
+    adminModuleIndex = Math.max(0, Math.min(adminModuleIndex, modules.length - 1));
+    const activeModule = modules[adminModuleIndex];
+    const topics = activeModule?.topics || [];
+    adminTopicIndex = Math.max(0, Math.min(adminTopicIndex, topics.length - 1));
+    const activeTopic = topics[adminTopicIndex];
+    const titleEn = localized(adminDraft.title) || "";
+    const availableRoadmaps = roadmaps.map((item) => [item.id, `${localized(item.title)} · ${item.id}`]);
+    const modulesSelect = modules.map((item, index) => [String(index), localized(item.title) || `${at("module")} ${index + 1}`]);
+    const topicsSelect = topics.map((item, index) => [String(index), localized(item.title) || `${at("checkpoint")} ${index + 1}`]);
+    const subtopics = activeTopic ? (activeTopic.subtopics || []) : [];
+    const resources = activeTopic ? (activeTopic.resources || (activeTopic.resources = [])) : [];
+    root.innerHTML = `<section class="cms-page"><header class="cms-header"><div><span class="eyebrow">YFLB Atlas · ${escapeHtml(at("title"))}</span><h1>${escapeHtml(titleEn || at("createTitle"))}</h1><p>${escapeHtml(at("intro"))}</p></div><button class="button button-secondary" type="button" data-action="admin-logout">${escapeHtml(at("signedOut"))}</button></header>
+      <div class="cms-toolbar"><label class="cms-field"><span>${escapeHtml(at("choose"))}</span><select id="adminRoadmapSelect">${adminOptions(availableRoadmaps, adminSelectedId === "__new__" ? "" : adminSelectedId, at("choose"))}</select></label><button class="button button-secondary" type="button" data-action="admin-new">${escapeHtml(at("addRoadmap"))}</button></div>
+      ${contentLoadError ? `<p class="cms-alert">${escapeHtml(at("loadError"))}</p>` : ""}
+      <form class="cms-editor" id="adminEditor">
+        <section class="cms-card"><h2>${escapeHtml(at("roadmap"))}</h2><div class="cms-grid">${adminField(at("titleEn"), "title.en", adminDraft.title?.en)}${adminField(at("titleAr"), "title.ar", adminDraft.title?.ar)}${adminField(at("summaryEn"), "summary.en", adminDraft.summary?.en, true)}${adminField(at("summaryAr"), "summary.ar", adminDraft.summary?.ar, true)}<label class="cms-field"><span>${escapeHtml(at("category"))}</span><select data-admin-path="category">${CATEGORIES.map((category) => `<option value="${escapeHtml(category)}" ${adminDraft.category === category ? "selected" : ""}>${escapeHtml(categoryName(category))}</option>`).join("")}</select></label></div></section>
+        <section class="cms-card"><div class="cms-card-heading"><h2>${escapeHtml(at("module"))}</h2><div class="cms-actions"><label class="cms-field cms-select"><span>${escapeHtml(at("chooseModule"))}</span><select id="adminModuleSelect">${adminOptions(modulesSelect, String(adminModuleIndex), at("chooseModule"))}</select></label><button class="button button-secondary" type="button" data-action="admin-add-module">${escapeHtml(at("addModule"))}</button>${activeModule ? `<button class="button button-danger" type="button" data-action="admin-remove-module">${escapeHtml(at("removeModule"))}</button>` : ""}</div></div>
+          ${activeModule ? `<div class="cms-grid">${adminField(at("moduleTitleEn"), `modules.${adminModuleIndex}.title.en`, activeModule.title?.en)}${adminField(at("moduleTitleAr"), `modules.${adminModuleIndex}.title.ar`, activeModule.title?.ar)}</div>` : `<p>${escapeHtml(at("chooseModule"))}</p>`}</section>
+        ${activeModule ? `<section class="cms-card"><div class="cms-card-heading"><h2>${escapeHtml(at("checkpoint"))}</h2><div class="cms-actions"><label class="cms-field cms-select"><span>${escapeHtml(at("chooseCheckpoint"))}</span><select id="adminTopicSelect">${adminOptions(topicsSelect, String(adminTopicIndex), at("chooseCheckpoint"))}</select></label><button class="button button-secondary" type="button" data-action="admin-add-topic">${escapeHtml(at("addCheckpoint"))}</button>${activeTopic ? `<button class="button button-danger" type="button" data-action="admin-remove-topic">${escapeHtml(at("removeCheckpoint"))}</button>` : ""}</div></div>
+          ${activeTopic ? `<div class="cms-grid">${adminField(at("topicTitleEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.title.en`, activeTopic.title?.en)}${adminField(at("topicTitleAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.title.ar`, activeTopic.title?.ar)}${adminField(at("overviewEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.overview.en`, activeTopic.overview?.en, true)}${adminField(at("overviewAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.overview.ar`, activeTopic.overview?.ar, true)}</div>
+            <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("subtopics"))}</h3><button class="button button-secondary" type="button" data-action="admin-add-subtopic">${escapeHtml(at("addSubtopic"))}</button></div>${subtopics.map((subtopic, index) => `<div class="cms-repeater"><div class="cms-grid">${adminField(at("subtopicEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.en`, typeof subtopic === "string" ? subtopic : subtopic.en)}${adminField(at("subtopicAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.subtopics.${index}.ar`, typeof subtopic === "string" ? "" : subtopic.ar)}</div><button class="button button-danger" type="button" data-action="admin-remove-subtopic" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>
+            <div class="cms-list"><div class="cms-card-heading"><h3>${escapeHtml(at("sources"))}</h3><button class="button button-secondary" type="button" data-action="admin-add-resource">${escapeHtml(at("addSource"))}</button></div>${resources.map((resource, index) => `<div class="cms-repeater"><div class="cms-grid">${adminField(at("sourceTitleEn"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.title.en`, resource.title?.en)}${adminField(at("sourceTitleAr"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.title.ar`, resource.title?.ar)}${adminField(at("sourceUrl"), `modules.${adminModuleIndex}.topics.${adminTopicIndex}.resources.${index}.url`, resource.url)}</div><button class="button button-danger" type="button" data-action="admin-remove-resource" data-index="${index}">${escapeHtml(at("remove"))}</button></div>`).join("")}</div>` : `<p>${escapeHtml(at("chooseCheckpoint"))}</p>`}</section>` : ""}
+        <footer class="cms-publish"><p>${escapeHtml(at("saveNote"))}</p><div>${adminDraft.id ? `<button class="button button-danger" type="button" data-action="admin-delete-roadmap">${escapeHtml(at("deleteRoadmap"))}</button>` : ""}<button class="button button-primary" type="button" data-action="admin-save" ${adminBusy ? "disabled" : ""}>${escapeHtml(adminBusy ? at("saving") : at("save"))}</button></div></footer>
+        ${adminNotice ? `<p class="cms-alert" role="status">${escapeHtml(adminNotice)}</p>` : ""}
+      </form></section>`;
   };
   const moduleState = (roadmap, module) => {
     const statuses = module.topics.map((topic) => topicStatus(roadmap, topic.id));
@@ -549,6 +668,8 @@
       renderLibrary(route.params, "learning");
     } else if (route.page === "saved") {
       renderLibrary(route.params, "saved");
+    } else if (route.page === "admin") {
+      renderAdmin(route.id);
     } else {
       renderHome();
     }
@@ -567,6 +688,120 @@
       scrollToTopAfterRender = false;
     }
   };
+  const slugify = (value) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const currentAdminModule = () => adminDraft?.modules?.[adminModuleIndex];
+  const currentAdminTopic = () => currentAdminModule()?.topics?.[adminTopicIndex];
+  const finishAdminAction = () => { adminNotice = ""; renderAdmin(parseRoute().id); };
+  const adminLogin = async () => {
+    try { await contentStore.signIn(); }
+    catch (error) { adminNotice = error.message || String(error); renderAdmin(parseRoute().id); }
+  };
+  const adminSave = async () => {
+    const englishTitle = adminDraft?.title?.en?.trim();
+    if (!englishTitle) { adminNotice = at("invalid"); renderAdmin(parseRoute().id); return; }
+    if (!adminDraft.id) {
+      const baseId = `custom-${slugify(englishTitle) || Date.now()}`;
+      adminDraft.id = byId.has(baseId) ? `${baseId}-${Date.now()}` : baseId;
+    }
+    adminDraft.modules ||= [];
+    adminDraft.modules.forEach((module, moduleIndex) => {
+      module.id ||= `${adminDraft.id}-module-${moduleIndex + 1}`;
+      module.topics ||= [];
+      module.topics.forEach((topic, topicIndex) => {
+        topic.id ||= `${adminDraft.id}-topic-${moduleIndex + 1}-${topicIndex + 1}`;
+        topic.subtopics ||= [];
+        topic.resources ||= [];
+      });
+    });
+    adminBusy = true;
+    renderAdmin(parseRoute().id);
+    try {
+      await contentStore.save(adminDraft);
+      sessionStorage.setItem("atlas-admin-notice", at("saved"));
+      window.history.replaceState(null, "", `#/admin/${encodeURIComponent(adminDraft.id)}`);
+      window.location.reload();
+    } catch (error) {
+      adminNotice = error.message || String(error);
+      adminBusy = false;
+      renderAdmin(parseRoute().id);
+    }
+  };
+  const adminDeleteRoadmap = async () => {
+    if (!adminDraft?.id || !window.confirm(state.language === "ar" ? "هل تريد حذف هذا المسار لجميع الزوار؟" : "Remove this roadmap for all visitors?")) return;
+    adminBusy = true;
+    renderAdmin(parseRoute().id);
+    try {
+      await contentStore.remove(adminDraft.id);
+      sessionStorage.setItem("atlas-admin-notice", state.language === "ar" ? "تم حذف المسار من الموقع." : "The roadmap was removed from the site.");
+      window.location.hash = "#/admin";
+      window.location.reload();
+    } catch (error) {
+      adminNotice = error.message || String(error);
+      adminBusy = false;
+      renderAdmin(parseRoute().id);
+    }
+  };
+  const adminAddRoadmap = () => {
+    adminSelectedId = "__new__";
+    adminDraft = newRoadmapDraft();
+    adminModuleIndex = 0;
+    adminTopicIndex = 0;
+    adminNotice = "";
+    location.hash = "#/admin/new";
+  };
+  const adminAddModule = () => {
+    const modules = adminDraft.modules || (adminDraft.modules = []);
+    modules.push({ id: "", title: { en: "", ar: "" }, topics: [] });
+    adminModuleIndex = modules.length - 1;
+    adminTopicIndex = 0;
+    finishAdminAction();
+  };
+  const adminRemoveModule = () => {
+    const modules = adminDraft.modules || [];
+    if (!modules[adminModuleIndex] || !window.confirm(state.language === "ar" ? "حذف هذا الموضوع وكل موضوعاته الفرعية؟" : "Remove this main topic and its learning topics?")) return;
+    modules.splice(adminModuleIndex, 1);
+    adminModuleIndex = Math.max(0, adminModuleIndex - 1);
+    adminTopicIndex = 0;
+    finishAdminAction();
+  };
+  const adminAddTopic = () => {
+    const module = currentAdminModule();
+    if (!module) return;
+    module.topics ||= [];
+    module.topics.push({ id: "", title: { en: "", ar: "" }, overview: { en: "", ar: "" }, subtopics: [], resources: [] });
+    adminTopicIndex = module.topics.length - 1;
+    finishAdminAction();
+  };
+  const adminRemoveTopic = () => {
+    const topics = currentAdminModule()?.topics || [];
+    if (!topics[adminTopicIndex] || !window.confirm(state.language === "ar" ? "حذف موضوع التعلم هذا؟" : "Remove this learning topic?")) return;
+    topics.splice(adminTopicIndex, 1);
+    adminTopicIndex = Math.max(0, adminTopicIndex - 1);
+    finishAdminAction();
+  };
+  const adminAddSubtopic = () => {
+    const topic = currentAdminTopic();
+    if (!topic) return;
+    topic.subtopics ||= [];
+    topic.subtopics.push({ en: "", ar: "" });
+    finishAdminAction();
+  };
+  const adminAddResource = () => {
+    const topic = currentAdminTopic();
+    if (!topic) return;
+    topic.resources ||= [];
+    topic.resources.push({ title: { en: "", ar: "" }, url: "" });
+    finishAdminAction();
+  };
+  const adminRemoveRepeatedItem = (collection, index) => {
+    const topic = currentAdminTopic();
+    if (!topic?.[collection] || !topic[collection][index]) return;
+    topic[collection].splice(index, 1);
+    finishAdminAction();
+  };
+  contentStore.subscribeUser?.((user) => {
+    if (parseRoute().page === "admin") render();
+  });
   const updateSearchResults = (query) => {
     const rawQuery = query.trim();
     if (!rawQuery) { closeSearchResults(); return; }
@@ -689,6 +924,23 @@
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const name = action.dataset.action;
+    if (name.startsWith("admin-")) {
+      event.preventDefault();
+      if (name === "admin-login") adminLogin();
+      else if (name === "admin-logout") contentStore.signOut().catch((error) => { adminNotice = error.message || String(error); renderAdmin(parseRoute().id); });
+      else if (name === "admin-new") adminAddRoadmap();
+      else if (name === "admin-save") adminSave();
+      else if (name === "admin-delete-roadmap") adminDeleteRoadmap();
+      else if (name === "admin-add-module") adminAddModule();
+      else if (name === "admin-remove-module") adminRemoveModule();
+      else if (name === "admin-add-topic") adminAddTopic();
+      else if (name === "admin-remove-topic") adminRemoveTopic();
+      else if (name === "admin-add-subtopic") adminAddSubtopic();
+      else if (name === "admin-remove-subtopic") adminRemoveRepeatedItem("subtopics", Number(action.dataset.index));
+      else if (name === "admin-add-resource") adminAddResource();
+      else if (name === "admin-remove-resource") adminRemoveRepeatedItem("resources", Number(action.dataset.index));
+      return;
+    }
     if (name === "toggle-save") { event.preventDefault(); toggleSaved(action.dataset.roadmap); }
     if (name === "open-related-roadmap") {
       event.preventDefault();
@@ -727,6 +979,37 @@
   };
 
   document.addEventListener("click", delegatedClick);
+  document.addEventListener("input", (event) => {
+    const field = event.target.closest("[data-admin-path]");
+    if (field) setAdminValue(field.dataset.adminPath, field.value);
+  });
+  document.addEventListener("change", (event) => {
+    if (event.target.id === "adminRoadmapSelect") {
+      const id = event.target.value;
+      if (id && byId.has(id)) {
+        adminSelectedId = id;
+        adminDraft = cloneContent(byId.get(id));
+        adminModuleIndex = 0;
+        adminTopicIndex = 0;
+        adminNotice = "";
+        location.hash = `#/admin/${encodeURIComponent(id)}`;
+      }
+      return;
+    }
+    if (event.target.id === "adminModuleSelect") {
+      adminModuleIndex = Math.max(0, Number(event.target.value) || 0);
+      adminTopicIndex = 0;
+      renderAdmin(parseRoute().id);
+      return;
+    }
+    if (event.target.id === "adminTopicSelect") {
+      adminTopicIndex = Math.max(0, Number(event.target.value) || 0);
+      renderAdmin(parseRoute().id);
+      return;
+    }
+    const field = event.target.closest("[data-admin-path]");
+    if (field) setAdminValue(field.dataset.adminPath, field.value);
+  });
   document.addEventListener("click", (event) => {
     if (!searchWrap.contains(event.target)) closeSearchResults();
   });
@@ -800,4 +1083,9 @@
   setDocumentLanguage();
   if (!location.hash) history.replaceState(null, "", "#/home");
   render();
+  const adminToast = sessionStorage.getItem("atlas-admin-notice");
+  if (adminToast) {
+    sessionStorage.removeItem("atlas-admin-notice");
+    showToast(adminToast);
+  }
 })();

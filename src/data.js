@@ -1,7 +1,7 @@
 (() => {
   const copy = {
     en: {
-      brand: "Atlas", brandLabel: "YFLB Atlas", brandAlt: "Official YFLB logo", navRoadmaps: "Roadmaps", navLearning: "My learning", navSaved: "Saved",
+      brand: "Atlas", brandLabel: "YFLB Atlas", brandAlt: "Official YFLB logo", navRoadmaps: "Roadmaps", navLearning: "My learning", navSaved: "Saved", navAdmin: "Edit content",
       searchPlaceholder: "What do you want to learn today?", skip: "Skip to main content", menu: "Open menu", themeDark: "Switch to dark theme", themeLight: "Switch to light theme",
       homeEyebrow: "Learn by doing", homeTitle: "Find a field. Follow a clear path.", homeIntro: "Explore business, accounting, finance, information systems and data through short, connected learning steps.",
       popular: "Most popular", newLabel: "Start here", allRoadmaps: "All roadmaps", createPrompt: "Choose a roadmap to begin", browseAll: "Browse all roadmaps", categories: "Categories", categoryAll: "All roadmaps", fields: "roadmaps", results: "results", noResults: "No topics or paths match your search. Try a different spelling.", didYouMean: "Did you mean",
@@ -19,7 +19,7 @@
       studyPrompt: "Copy a study question", alreadyDone: "Completed. Reopen this checkpoint any time.", selfPacedNote: "Suggested learning guidance; adapt the pace to your needs.", breadcrumbs: "Breadcrumbs", journeyCompleteNote: "You completed all of the suggested learning checkpoints.", roadmapMap: "Learning map", connectedPaths: "Connected learning paths", connectedPathsNote: "Explore a neighboring field and learn its topics in any order.",
     },
     ar: {
-      brand: "أطلس", brandLabel: "أطلس", brandAlt: "الشعار الرسمي", navRoadmaps: "المسارات", navLearning: "تعلّمي", navSaved: "المحفوظات",
+      brand: "أطلس", brandLabel: "أطلس", brandAlt: "الشعار الرسمي", navRoadmaps: "المسارات", navLearning: "تعلّمي", navSaved: "المحفوظات", navAdmin: "إدارة المحتوى",
       searchPlaceholder: "ماذا تريد أن تتعلم اليوم؟", skip: "انتقل إلى المحتوى الرئيسي", menu: "افتح القائمة", themeDark: "التبديل إلى المظهر الداكن", themeLight: "التبديل إلى المظهر الفاتح",
       homeEyebrow: "تعلّم بالتطبيق", homeTitle: "اختر مجالاً، واتبع طريقاً واضحاً.", homeIntro: "استكشف الأعمال والمحاسبة والتمويل ونظم المعلومات والبيانات من خلال خطوات تعلم قصيرة ومترابطة.",
       popular: "الأكثر استكشافاً", newLabel: "ابدأ من هنا", allRoadmaps: "كل المسارات", createPrompt: "اختر مساراً لتبدأ", browseAll: "تصفّح كل المسارات", categories: "المجالات", categoryAll: "كل المسارات", fields: "مسارات", results: "نتائج", noResults: "لم نجد موضوعات أو مسارات تطابق بحثك. جرّب كتابة أخرى.", didYouMean: "هل تقصد",

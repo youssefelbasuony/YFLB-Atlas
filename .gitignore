@@ -1,7 +1,9 @@
 /.vercel/
 /node_modules/
+/.firebase-npm-cache/
 /tmp/
 /assets/sources/
+firebase-debug.log
 .env
 .env.*
 !.env.example

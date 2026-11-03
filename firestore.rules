@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Assumed data model:
+    // atlasRoadmaps/{roadmapId} stores a public roadmap payload, a soft-delete
+    // flag, and a server timestamp. Payload fields are id, category, localized
+    // title/summary, modules, and an optional topicCount. Roadmap content has
+    // no private user data; editor identity is never stored in this document.
+
+    function isAtlasEditor() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'youssefelbasuony1@gmail.com',
+          'yflb.business1@gmail.com'
+        ];
+    }
+
+    function isLocalizedText(value, maxLength) {
+      return value is map
+        && value.keys().hasOnly(['en', 'ar'])
+        && value.keys().hasAll(['en', 'ar'])
+        && value.en is string
+        && value.en.size() <= maxLength
+        && value.ar is string
+        && value.ar.size() <= maxLength;
+    }
+
+    function isValidRoadmapPayload(roadmapId) {
+      let payload = request.resource.data.payload;
+      return payload is map
+        && payload.keys().hasOnly([
+          'id', 'category', 'title', 'summary', 'modules', 'topicCount'
+        ])
+        && payload.keys().hasAll(['id', 'category', 'title', 'summary', 'modules'])
+        && payload.id is string
+        && payload.id == roadmapId
+        && payload.category in [
+          'business', 'accounting', 'finance', 'systems', 'data', 'professional'
+        ]
+        && isLocalizedText(payload.title, 200)
+        && isLocalizedText(payload.summary, 5000)
+        && payload.modules is list
+        && payload.modules.size() <= 100
+        && (!('topicCount' in payload)
+          || (payload.topicCount is int && payload.topicCount >= 0));
+    }
+
+    function isValidRoadmapDocument(roadmapId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['payload', 'deleted', 'updatedAt'])
+        && data.keys().hasAll(['deleted', 'updatedAt'])
+        && data.deleted is bool
+        && data.updatedAt is timestamp
+        && (data.deleted
+          ? !('payload' in data)
+          : ('payload' in data && isValidRoadmapPayload(roadmapId)));
+    }
+
+    match /atlasRoadmaps/{roadmapId} {
+      // Visitors need published learning content to render roadmaps.
+      allow read: if true;
+      allow create: if isAtlasEditor() && isValidRoadmapDocument(roadmapId);
+      allow update: if isAtlasEditor() && isValidRoadmapDocument(roadmapId);
+      // The editor writes soft-delete tombstones so an item can be restored.
+      allow delete: if false;
+    }
+
+    // Explicit default-deny for every other collection/document path.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

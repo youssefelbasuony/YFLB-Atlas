@@ -322,6 +322,37 @@ body.has-learning-drawer { overflow: hidden; }
 .resource-links span { font-size: 0.72rem; font-weight: 700; }
 .detail-footnote { margin: 0.8rem 0 0; color: var(--color-muted); font-size: 0.64rem; }
 
+.cms-page, .cms-gate { width: min(100%, 980px); margin-inline: auto; padding-block: clamp(1rem, 3vw, 2.2rem); }
+.cms-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-block-end: 1.2rem; }
+.cms-header h1, .cms-gate h1 { margin: 0.25rem 0 0.42rem; font-family: var(--font-display); font-size: clamp(1.8rem, 4vw, 2.65rem); line-height: 1.1; }
+.cms-header p, .cms-gate > p { max-width: 660px; margin: 0; color: var(--color-muted); }
+.cms-toolbar { display: flex; align-items: end; gap: 0.65rem; margin-block-end: 0.85rem; padding: 0.85rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.cms-editor { display: grid; gap: 0.8rem; }
+.cms-card, .cms-login-card { min-width: 0; padding: clamp(0.8rem, 2vw, 1.15rem); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-card); }
+.cms-card > h2, .cms-card-heading h2, .cms-card-heading h3 { margin: 0; font-size: 1.02rem; }
+.cms-card-heading { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 0.7rem; margin-block-end: 0.8rem; }
+.cms-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 0.45rem; }
+.cms-select { min-width: min(100%, 280px); }
+.cms-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; margin-block-start: 0.75rem; }
+.cms-field { display: grid; flex: 1 1 230px; min-width: 0; gap: 0.28rem; color: var(--color-body); font-size: 0.76rem; font-weight: 700; }
+.cms-grid .cms-field { flex-basis: auto; }
+.cms-field input, .cms-field textarea, .cms-field select { width: 100%; min-width: 0; min-height: 42px; padding: 0.58rem 0.68rem; border: 1px solid var(--color-border-strong); border-radius: 0.55rem; background: var(--color-surface-raised); color: var(--color-foreground); font: inherit; font-size: 0.82rem; font-weight: 400; }
+.cms-field textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
+.cms-field input:focus-visible, .cms-field textarea:focus-visible, .cms-field select:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+.cms-list { margin-block-start: 1rem; padding-block-start: 0.85rem; border-block-start: 1px solid var(--color-border); }
+.cms-list .cms-card-heading { align-items: center; }
+.cms-repeater { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 0.55rem; margin-block-start: 0.58rem; padding: 0.58rem; border: 1px solid var(--color-border); border-radius: 0.62rem; background: var(--color-surface-subtle); }
+.cms-repeater .cms-grid { margin-block-start: 0; }
+.button-danger { border-color: color-mix(in srgb, var(--color-error) 35%, var(--color-border)); background: color-mix(in srgb, var(--color-error) 8%, var(--color-surface)); color: var(--color-error); }
+.button-danger:hover { border-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 13%, var(--color-surface)); }
+.cms-publish { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.7rem; padding: 0.85rem 0.15rem; }
+.cms-publish p { margin: 0; color: var(--color-muted); font-size: 0.77rem; }
+.cms-publish > div { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cms-login-card { display: grid; justify-items: start; gap: 0.75rem; margin-block-start: 1rem; }
+.cms-login-card p { margin: 0; color: var(--color-muted); font-size: 0.82rem; }
+.cms-alert { margin-block: 0.65rem; padding: 0.65rem 0.8rem; border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border)); border-radius: 0.55rem; background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface)); color: var(--color-foreground); font-size: 0.78rem; overflow-wrap: anywhere; }
+.cms-gate .cms-alert { margin-block: 0.9rem; }
+
 @media (max-width: 1360px) {
   .roadmap-workspace { grid-template-columns: minmax(0, 1fr); }
   .connected-path-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -367,6 +398,18 @@ body.has-learning-drawer { overflow: hidden; }
   .hub-copy strong { font-size: 0.75rem; }
 }
 @media (max-width: 620px) {
+  .cms-header { align-items: stretch; flex-direction: column; }
+  .cms-toolbar { align-items: stretch; flex-direction: column; }
+  .cms-toolbar .button { width: 100%; }
+  .cms-grid { grid-template-columns: 1fr; }
+  .cms-card-heading { align-items: stretch; }
+  .cms-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .cms-actions .button, .cms-actions .cms-select { width: 100%; }
+  .cms-repeater { grid-template-columns: 1fr; }
+  .cms-repeater .button { justify-self: start; }
+  .cms-publish { align-items: stretch; flex-direction: column; }
+  .cms-publish > div { width: 100%; }
+  .cms-publish > div .button { flex: 1 1 auto; }
   .platform-header { flex-wrap: nowrap; min-height: 0; gap: 0.4rem; padding: 0.4rem 0.7rem; }
   .platform-brand { min-height: 42px; gap: 0.38rem; }
   .platform-brand img { width: 56px; height: 30px; }
