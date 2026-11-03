@@ -21,6 +21,9 @@
   const searchWrap = document.getElementById("searchWrap");
   const toast = document.getElementById("toast");
   const STORAGE_KEY = "professional-atlas-v3";
+  const GUEST_STATE_KEY = `${STORAGE_KEY}-guest`;
+  const ACTIVE_USER_KEY = `${STORAGE_KEY}-active-user`;
+  const accountStateKey = (uid) => `${STORAGE_KEY}-user-${uid}`;
   const byId = new Map(roadmaps.map((roadmap) => [roadmap.id, roadmap]));
   const topicIndex = new Map();
   roadmaps.forEach((roadmap) => roadmap.modules.forEach((module) => module.topics.forEach((topic, index) => {
@@ -28,37 +31,87 @@
   })));
 
   const freshState = () => ({ language: "en", theme: "light", favorites: [], started: [], progress: {}, learning: {}, skipped: {} });
-  const readState = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (!saved || typeof saved !== "object") return freshState();
-      const next = freshState();
-      next.language = saved.language === "ar" ? "ar" : "en";
-      next.theme = saved.theme === "dark" ? "dark" : "light";
-      next.favorites = Array.isArray(saved.favorites) ? [...new Set(saved.favorites.filter((id) => byId.has(id)))] : [];
-      next.started = Array.isArray(saved.started) ? [...new Set(saved.started.filter((id) => byId.has(id)))] : [];
-      const completedSource = saved.progress && typeof saved.progress === "object" ? saved.progress : {};
-      const learningSource = saved.learning && typeof saved.learning === "object" ? saved.learning : {};
-      const skippedSource = saved.skipped && typeof saved.skipped === "object" ? saved.skipped : {};
-      roadmaps.forEach((roadmap) => {
-        const ordered = roadmap.modules.flatMap((module) => module.topics.map((topic) => topic.id));
-        const marked = new Set(Array.isArray(completedSource[roadmap.id]) ? completedSource[roadmap.id] : []);
-        const skipped = new Set(Array.isArray(skippedSource[roadmap.id]) ? skippedSource[roadmap.id] : []);
-        const learning = new Set(Array.isArray(learningSource[roadmap.id]) ? learningSource[roadmap.id] : []);
-        const completed = ordered.filter((id) => marked.has(id));
-        const ignored = ordered.filter((id) => skipped.has(id) && !marked.has(id));
-        const inProgress = ordered.filter((id) => learning.has(id) && !marked.has(id) && !skipped.has(id));
-        if (completed.length) next.progress[roadmap.id] = completed;
-        if (ignored.length) next.skipped[roadmap.id] = ignored;
-        if (inProgress.length) next.learning[roadmap.id] = inProgress;
-      });
-      next.started = [...new Set([...next.started, ...Object.keys(next.progress), ...Object.keys(next.learning), ...Object.keys(next.skipped)])];
-      return next;
-    } catch {
-      return freshState();
-    }
+  const normalizeState = (saved) => {
+    if (!saved || typeof saved !== "object") return freshState();
+    const next = freshState();
+    next.language = saved.language === "ar" ? "ar" : "en";
+    next.theme = saved.theme === "dark" ? "dark" : "light";
+    next.favorites = Array.isArray(saved.favorites) ? [...new Set(saved.favorites.filter((id) => byId.has(id)))] : [];
+    next.started = Array.isArray(saved.started) ? [...new Set(saved.started.filter((id) => byId.has(id)))] : [];
+    const completedSource = saved.progress && typeof saved.progress === "object" ? saved.progress : {};
+    const learningSource = saved.learning && typeof saved.learning === "object" ? saved.learning : {};
+    const skippedSource = saved.skipped && typeof saved.skipped === "object" ? saved.skipped : {};
+    roadmaps.forEach((roadmap) => {
+      const ordered = roadmap.modules.flatMap((module) => module.topics.map((topic) => topic.id));
+      const marked = new Set(Array.isArray(completedSource[roadmap.id]) ? completedSource[roadmap.id] : []);
+      const skipped = new Set(Array.isArray(skippedSource[roadmap.id]) ? skippedSource[roadmap.id] : []);
+      const learning = new Set(Array.isArray(learningSource[roadmap.id]) ? learningSource[roadmap.id] : []);
+      const completed = ordered.filter((id) => marked.has(id));
+      const ignored = ordered.filter((id) => skipped.has(id) && !marked.has(id));
+      const inProgress = ordered.filter((id) => learning.has(id) && !marked.has(id) && !skipped.has(id));
+      if (completed.length) next.progress[roadmap.id] = completed;
+      if (ignored.length) next.skipped[roadmap.id] = ignored;
+      if (inProgress.length) next.learning[roadmap.id] = inProgress;
+    });
+    next.started = [...new Set([...next.started, ...Object.keys(next.progress), ...Object.keys(next.learning), ...Object.keys(next.skipped)])];
+    return next;
+  };
+  const readStoredState = (key) => {
+    try { return normalizeState(JSON.parse(localStorage.getItem(key) || "null")); }
+    catch { return freshState(); }
+  };
+  const readStorageValue = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+  const readState = () => readStoredState(STORAGE_KEY);
+  const personalState = (source) => ({
+    favorites: source.favorites,
+    started: source.started,
+    progress: source.progress,
+    learning: source.learning,
+    skipped: source.skipped
+  });
+  const mergeLearningStates = (primary, secondary) => {
+    const first = normalizeState(primary);
+    const second = normalizeState(secondary);
+    const merged = freshState();
+    merged.language = first.language;
+    merged.theme = first.theme;
+    merged.favorites = [...new Set([...first.favorites, ...second.favorites])];
+    merged.started = [...new Set([...first.started, ...second.started])];
+    roadmaps.forEach((roadmap) => {
+      const ordered = roadmap.modules.flatMap((module) => module.topics.map((topic) => topic.id));
+      const completed = new Set([...(first.progress[roadmap.id] || []), ...(second.progress[roadmap.id] || [])]);
+      const skipped = new Set([...(first.skipped[roadmap.id] || []), ...(second.skipped[roadmap.id] || [])]);
+      const learning = new Set([...(first.learning[roadmap.id] || []), ...(second.learning[roadmap.id] || [])]);
+      const doneIds = ordered.filter((id) => completed.has(id));
+      const skippedIds = ordered.filter((id) => skipped.has(id) && !completed.has(id));
+      const learningIds = ordered.filter((id) => learning.has(id) && !completed.has(id) && !skipped.has(id));
+      if (doneIds.length) merged.progress[roadmap.id] = doneIds;
+      if (skippedIds.length) merged.skipped[roadmap.id] = skippedIds;
+      if (learningIds.length) merged.learning[roadmap.id] = learningIds;
+    });
+    merged.started = [...new Set([...merged.started, ...Object.keys(merged.progress), ...Object.keys(merged.learning), ...Object.keys(merged.skipped)])];
+    return merged;
   };
   const state = readState();
+  if (readStorageValue(ACTIVE_USER_KEY)) {
+    const guestState = readStoredState(GUEST_STATE_KEY);
+    Object.assign(state, {
+      favorites: guestState.favorites,
+      started: guestState.started,
+      progress: guestState.progress,
+      learning: guestState.learning,
+      skipped: guestState.skipped
+    });
+  }
+  let authReady = !contentStore.configured;
+  let activeUserUid = null;
+  let cloudSyncEnabled = false;
+  let cloudSyncState = "guest";
+  let lastCloudSnapshot = "";
+  let cloudSyncTimer = 0;
+  let authHydrationVersion = 0;
+  let cloudWriteQueue = Promise.resolve();
+  let syncErrorShown = false;
   let searchFocusIndex = -1;
   let focusTopicAfterRender = false;
   let scrollToTopAfterRender = false;
@@ -99,8 +152,63 @@
     return `<svg ${extra} viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.category}</svg>`;
   };
 
+  const queueCloudSync = () => {
+    if (!cloudSyncEnabled || !activeUserUid || contentStore.user?.uid !== activeUserUid) return;
+    const snapshot = JSON.stringify(personalState(state));
+    if (snapshot === lastCloudSnapshot) return;
+    window.clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = window.setTimeout(() => {
+      if (!cloudSyncEnabled || !activeUserUid || contentStore.user?.uid !== activeUserUid) return;
+      const uid = activeUserUid;
+      const payload = JSON.parse(snapshot);
+      cloudWriteQueue = cloudWriteQueue.catch(() => {}).then(() => contentStore.saveUserState(uid, payload));
+      cloudWriteQueue.then(() => {
+        if (activeUserUid !== uid) return;
+        lastCloudSnapshot = snapshot;
+        cloudSyncState = "ready";
+        syncErrorShown = false;
+        updateAccountControls();
+      }).catch((error) => {
+        console.warn("Atlas learning progress could not sync.", error);
+        if (activeUserUid !== uid) return;
+        cloudSyncState = "error";
+        updateAccountControls();
+        if (!syncErrorShown) { syncErrorShown = true; showToast(tr("accountSyncError")); }
+      });
+    }, 650);
+  };
+  const flushCloudSync = async () => {
+    window.clearTimeout(cloudSyncTimer);
+    if (!cloudSyncEnabled || !activeUserUid || contentStore.user?.uid !== activeUserUid) return true;
+    const snapshot = JSON.stringify(personalState(state));
+    if (snapshot === lastCloudSnapshot) return true;
+    const uid = activeUserUid;
+    const payload = JSON.parse(snapshot);
+    cloudWriteQueue = cloudWriteQueue.catch(() => {}).then(() => contentStore.saveUserState(uid, payload));
+    const saved = await Promise.race([
+      cloudWriteQueue.then(() => true).catch(() => false),
+      new Promise((resolve) => window.setTimeout(() => resolve(false), 2500))
+    ]);
+    if (saved && activeUserUid === uid) {
+      lastCloudSnapshot = snapshot;
+      cloudSyncState = "ready";
+      updateAccountControls();
+      return true;
+    }
+    if (activeUserUid === uid) {
+      cloudSyncState = "error";
+      updateAccountControls();
+      if (!syncErrorShown) { syncErrorShown = true; showToast(tr("accountSyncError")); }
+    }
+    return false;
+  };
   const persist = () => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* Private browsing can disable storage. */ }
+    try {
+      const serialized = JSON.stringify(state);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      if (authReady) localStorage.setItem(activeUserUid ? accountStateKey(activeUserUid) : GUEST_STATE_KEY, serialized);
+    } catch { /* Private browsing can disable storage. */ }
+    queueCloudSync();
   };
   const setDocumentLanguage = () => {
     const isArabic = state.language === "ar";
@@ -132,6 +240,7 @@
     document.querySelector("meta[property='og:title']").content = tr("pageTitle");
     document.querySelector("meta[property='og:description']").content = tr("metaDescription");
     document.title = tr("pageTitle");
+    updateAccountControls();
     syncNavigation();
   };
   const activeRouteName = () => {
@@ -144,6 +253,27 @@
       if (link.dataset.route === route) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     });
+  };
+  const updateAccountControls = () => {
+    const user = contentStore.user;
+    const editor = contentStore.isEditor(user);
+    const button = document.getElementById("accountButton");
+    const label = document.getElementById("accountButtonLabel");
+    const popover = document.getElementById("accountPopover");
+    const email = document.getElementById("accountEmail");
+    const badge = document.getElementById("accountAdminBadge");
+    const indicator = document.getElementById("accountAdminIndicator");
+    const note = document.getElementById("accountSyncNote");
+    if (!button || !label || !popover || !email || !badge || !indicator || !note) return;
+    label.textContent = user ? tr("account") : tr("signIn");
+    button.setAttribute("aria-label", user ? tr("account") : tr("signIn"));
+    button.setAttribute("aria-expanded", String(!popover.hidden));
+    email.textContent = user?.email || user?.displayName || "";
+    badge.hidden = !editor;
+    indicator.hidden = !editor;
+    note.textContent = user ? tr(cloudSyncState === "error" ? "accountSyncError" : "accountSyncReady") : tr("accountSyncHelp");
+    if (!user) popover.hidden = true;
+    document.querySelectorAll('[data-route="admin"]').forEach((link) => { link.hidden = !editor; });
   };
   const categoryName = (id) => copy[state.language].categoryNames[id] || id;
   const completedIds = (roadmap) => state.progress[roadmap.id] || [];
@@ -692,6 +822,11 @@
   const currentAdminModule = () => adminDraft?.modules?.[adminModuleIndex];
   const currentAdminTopic = () => currentAdminModule()?.topics?.[adminTopicIndex];
   const finishAdminAction = () => { adminNotice = ""; renderAdmin(parseRoute().id); };
+  const signOutAccount = async () => {
+    await flushCloudSync();
+    try { await contentStore.signOut(); }
+    catch { showToast(tr("signOutError")); }
+  };
   const adminLogin = async () => {
     try { await contentStore.signIn(); }
     catch (error) { adminNotice = error.message || String(error); renderAdmin(parseRoute().id); }
@@ -799,9 +934,75 @@
     topic[collection].splice(index, 1);
     finishAdminAction();
   };
-  contentStore.subscribeUser?.((user) => {
-    if (parseRoute().page === "admin") render();
-  });
+  const syncUserSession = async (user) => {
+    const version = ++authHydrationVersion;
+    const previousUid = activeUserUid;
+    const storedUid = readStorageValue(ACTIVE_USER_KEY);
+    window.clearTimeout(cloudSyncTimer);
+    cloudSyncEnabled = false;
+    authReady = false;
+
+    if (!user) {
+      if (previousUid) {
+        try { localStorage.setItem(accountStateKey(previousUid), JSON.stringify(state)); } catch { /* Local persistence is optional. */ }
+      }
+      activeUserUid = null;
+      try { localStorage.removeItem(ACTIVE_USER_KEY); } catch { /* Local persistence is optional. */ }
+      const preferences = { language: state.language, theme: state.theme };
+      Object.assign(state, readStoredState(GUEST_STATE_KEY), preferences);
+      authReady = true;
+      cloudSyncState = "guest";
+      lastCloudSnapshot = "";
+      persist();
+      render();
+      return;
+    }
+
+    if (previousUid && previousUid !== user.uid) {
+      try { localStorage.setItem(accountStateKey(previousUid), JSON.stringify(state)); } catch { /* Local persistence is optional. */ }
+    }
+    const preferences = { language: state.language, theme: state.theme };
+    const localKey = accountStateKey(user.uid);
+    let accountLocal = null;
+    try {
+      if (localStorage.getItem(localKey)) accountLocal = readStoredState(localKey);
+    } catch { /* Continue with cloud state if local storage is unavailable. */ }
+
+    let guestState = null;
+    if (!previousUid && !storedUid) {
+      try {
+        guestState = readStorageValue(GUEST_STATE_KEY) ? readStoredState(GUEST_STATE_KEY) : normalizeState(state);
+        if (!readStorageValue(GUEST_STATE_KEY)) localStorage.setItem(GUEST_STATE_KEY, JSON.stringify(guestState));
+      } catch { guestState = normalizeState(state); }
+    }
+
+    let remoteState = null;
+    let cloudLoaded = false;
+    try {
+      remoteState = await contentStore.loadUserState(user.uid);
+      cloudLoaded = true;
+    } catch (error) {
+      console.warn("Atlas learning progress could not load.", error);
+    }
+    if (version !== authHydrationVersion) return;
+
+    const sameAccount = previousUid === user.uid || storedUid === user.uid;
+    const accountBase = accountLocal || (sameAccount ? normalizeState(state) : freshState());
+    let merged = mergeLearningStates(accountBase, remoteState || freshState());
+    if (guestState) merged = mergeLearningStates(merged, mergeLearningStates(guestState, state));
+    Object.assign(state, merged, preferences);
+
+    activeUserUid = user.uid;
+    authReady = true;
+    cloudSyncEnabled = cloudLoaded;
+    cloudSyncState = cloudLoaded ? "ready" : "error";
+    syncErrorShown = false;
+    try { localStorage.setItem(ACTIVE_USER_KEY, user.uid); } catch { /* Local persistence is optional. */ }
+    lastCloudSnapshot = cloudLoaded ? JSON.stringify(personalState(normalizeState(remoteState || freshState()))) : "";
+    persist();
+    render();
+  };
+  contentStore.subscribeUser?.((user) => { void syncUserSession(user); });
   const updateSearchResults = (query) => {
     const rawQuery = query.trim();
     if (!rawQuery) { closeSearchResults(); return; }
@@ -911,23 +1112,40 @@
     else setHash(mapTarget, true);
   };
   const resetProgress = () => {
-    if (!window.confirm(tr("resetConfirm"))) return;
+    if (!window.confirm(tr(contentStore.user ? "resetConfirmAccount" : "resetConfirm"))) return;
     state.started = [];
     state.progress = {};
     state.learning = {};
     state.skipped = {};
     persist();
     render();
-    showToast(tr("resetDone"));
+    showToast(tr(contentStore.user ? "resetDoneAccount" : "resetDone"));
   };
   const delegatedClick = (event) => {
     const action = event.target.closest("[data-action]");
     if (!action) return;
     const name = action.dataset.action;
+    if (name === "account-toggle") {
+      event.preventDefault();
+      if (!contentStore.user) {
+        contentStore.signIn().catch(() => showToast(tr("signInError")));
+      } else {
+        const popover = document.getElementById("accountPopover");
+        popover.hidden = !popover.hidden;
+        action.setAttribute("aria-expanded", String(!popover.hidden));
+      }
+      return;
+    }
+    if (name === "account-signout") {
+      event.preventDefault();
+      document.getElementById("accountPopover").hidden = true;
+      void signOutAccount();
+      return;
+    }
     if (name.startsWith("admin-")) {
       event.preventDefault();
       if (name === "admin-login") adminLogin();
-      else if (name === "admin-logout") contentStore.signOut().catch((error) => { adminNotice = error.message || String(error); renderAdmin(parseRoute().id); });
+      else if (name === "admin-logout") void signOutAccount();
       else if (name === "admin-new") adminAddRoadmap();
       else if (name === "admin-save") adminSave();
       else if (name === "admin-delete-roadmap") adminDeleteRoadmap();
@@ -1012,6 +1230,12 @@
   });
   document.addEventListener("click", (event) => {
     if (!searchWrap.contains(event.target)) closeSearchResults();
+    const accountControl = document.getElementById("accountControl");
+    if (!accountControl.contains(event.target)) {
+      const popover = document.getElementById("accountPopover");
+      popover.hidden = true;
+      document.getElementById("accountButton").setAttribute("aria-expanded", "false");
+    }
   });
   document.addEventListener("keydown", (event) => {
     const route = parseRoute();

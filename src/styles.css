@@ -44,6 +44,18 @@ svg { display: block; width: 1.2rem; height: 1.2rem; fill: none; stroke: current
 .icon-button { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; padding: 0; border: 1px solid color-mix(in srgb, var(--color-sidebar-text) 20%, transparent); border-radius: 0.72rem; background: transparent; color: var(--color-sidebar-text); cursor: pointer; transition: background var(--transition-fast), border-color var(--transition-fast); }
 .icon-button:hover { border-color: color-mix(in srgb, var(--color-sidebar-text) 40%, transparent); background: var(--color-sidebar-hover); }
 .icon-button svg { width: 19px; height: 19px; }
+.account-control { position: relative; z-index: 90; flex: 0 0 auto; }
+.account-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.48rem; min-width: 44px; min-height: 44px; max-width: 205px; padding: 0.45rem 0.72rem; border: 1px solid color-mix(in srgb, var(--color-sidebar-text) 20%, transparent); border-radius: 0.72rem; background: transparent; color: var(--color-sidebar-text); cursor: pointer; font-size: 0.82rem; font-weight: 700; transition: background var(--transition-fast), border-color var(--transition-fast); }
+.account-button:hover, .account-button[aria-expanded="true"] { border-color: color-mix(in srgb, var(--color-sidebar-text) 40%, transparent); background: var(--color-sidebar-hover); }
+.account-button svg { width: 18px; height: 18px; flex: 0 0 18px; }
+.account-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-admin-indicator { position: absolute; inset-block-start: -0.48rem; inset-inline-end: -0.42rem; min-height: 21px; padding-inline: 0.42rem; border-color: var(--color-sidebar); background: var(--color-secondary); color: var(--p-white); font-size: 0.61rem; box-shadow: 0 0 0 2px var(--color-sidebar); }
+.account-popover { position: absolute; inset-block-start: calc(100% + 0.58rem); inset-inline-end: 0; display: grid; justify-items: start; gap: 0.58rem; width: min(320px, calc(100vw - 1.3rem)); padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); color: var(--color-foreground); box-shadow: var(--shadow-pop); }
+.account-email { max-width: 100%; overflow-wrap: anywhere; font-size: 0.86rem; }
+.account-sync-note { margin: 0; color: var(--color-muted); font-size: 0.76rem; line-height: 1.5; }
+.admin-badge { display: inline-flex; align-items: center; min-height: 25px; padding: 0.2rem 0.56rem; border: 1px solid color-mix(in srgb, var(--color-secondary) 28%, var(--color-border)); border-radius: 999px; background: color-mix(in srgb, var(--color-secondary) 10%, var(--color-surface)); color: var(--color-info); font-size: 0.7rem; font-weight: 800; }
+.account-popover-action { justify-self: stretch; min-height: 40px; padding: 0.45rem 0.65rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-foreground); cursor: pointer; text-align: start; font-size: 0.8rem; font-weight: 700; transition: background var(--transition-fast), border-color var(--transition-fast); }
+.account-popover-action:hover { border-color: var(--color-secondary); background: var(--color-surface-subtle); }
 .compact-menu { display: none; }
 .mobile-nav { display: none; }
 .search-results { position: absolute; inset-block-start: calc(100% + 0.55rem); inset-inline: 0; z-index: 80; max-height: min(72vh, 520px); overflow: auto; padding: 0.35rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-raised); box-shadow: var(--shadow-pop); }
@@ -375,6 +387,9 @@ body.has-learning-drawer { overflow: hidden; }
   .platform-tools { flex: 1 1 100%; order: 2; gap: 0.42rem; }
   .search-wrap { flex: 1 1 auto; min-width: 0; }
   .icon-button { width: 44px; height: 44px; flex-basis: 44px; }
+  .account-button { width: 44px; height: 44px; padding: 0; }
+  .account-button span { display: none; }
+  .account-admin-indicator { display: none; }
   .compact-menu { display: inline-grid; }
   .mobile-nav:not([hidden]) { position: relative; z-index: 45; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem; padding: 0.5rem 1rem; border-block-end: 1px solid var(--color-border); background: var(--color-surface); box-shadow: var(--shadow-soft); }
   .mobile-nav a { color: var(--color-body); font-size: 0.78rem; }
@@ -421,6 +436,7 @@ body.has-learning-drawer { overflow: hidden; }
   .search-icon { inset-inline-start: 0.72rem; }
   .search-wrap kbd { display: none; }
   .icon-button { width: 40px; height: 40px; flex-basis: 40px; }
+  .account-button { width: 40px; min-width: 40px; min-height: 40px; }
   .page-content { padding-inline: 0.85rem; }
   .catalog-hero { padding: 1.25rem; border-radius: var(--radius-lg); }
   .catalog-hero h1 { font-size: clamp(2.18rem, 11vw, 3.1rem); }
@@ -503,6 +519,7 @@ body.has-learning-drawer { overflow: hidden; }
   .platform-brand { gap: 0.42rem; }
   .platform-brand .brand-name { font-size: 1.02rem; }
   .icon-button { width: 38px; height: 38px; flex-basis: 38px; }
+  .account-button { width: 38px; min-width: 38px; min-height: 38px; }
   .hero-node { min-width: 98px !important; font-size: 0.55rem; }
   .topic-grid { grid-template-columns: 1fr; }
   .connected-path-grid { grid-template-columns: 1fr; }

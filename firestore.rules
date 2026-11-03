@@ -58,12 +58,44 @@ service cloud.firestore {
           : ('payload' in data && isValidRoadmapPayload(roadmapId)));
     }
 
+    function isLearningDataOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isValidLearningData() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'favorites', 'started', 'progress', 'learning', 'skipped', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'favorites', 'started', 'progress', 'learning', 'skipped', 'updatedAt'
+        ])
+        && data.favorites is list
+        && data.favorites.size() <= 500
+        && data.started is list
+        && data.started.size() <= 500
+        && data.progress is map
+        && data.progress.keys().size() <= 500
+        && data.learning is map
+        && data.learning.keys().size() <= 500
+        && data.skipped is map
+        && data.skipped.keys().size() <= 500
+        && data.updatedAt is timestamp;
+    }
+
     match /atlasRoadmaps/{roadmapId} {
       // Visitors need published learning content to render roadmaps.
       allow read: if true;
       allow create: if isAtlasEditor() && isValidRoadmapDocument(roadmapId);
       allow update: if isAtlasEditor() && isValidRoadmapDocument(roadmapId);
       // The editor writes soft-delete tombstones so an item can be restored.
+      allow delete: if false;
+    }
+
+    match /userLearning/{userId} {
+      // A signed-in learner can read and update only their own private progress.
+      allow read: if isLearningDataOwner(userId);
+      allow create, update: if isLearningDataOwner(userId) && isValidLearningData();
       allow delete: if false;
     }
 

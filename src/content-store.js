@@ -11,6 +11,7 @@ import {
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   serverTimestamp,
@@ -19,6 +20,7 @@ import {
 
 const EDITORS = new Set(["youssefelbasuony1@gmail.com", "yflb.business1@gmail.com"]);
 const COLLECTION = "atlasRoadmaps";
+const USER_STATE_COLLECTION = "userLearning";
 
 export async function createContentStore(config) {
   const configured = Boolean(config?.apiKey && config?.authDomain && config?.projectId && config?.appId);
@@ -29,6 +31,8 @@ export async function createContentStore(config) {
       isEditor: () => false,
       subscribeUser: () => () => {},
       load: async () => {},
+      loadUserState: async () => null,
+      saveUserState: async () => { throw new Error("Sign-in sync is not configured yet."); },
       signIn: async () => {},
       signOut: async () => {},
       save: async () => { throw new Error("The content editor is not connected yet."); },
@@ -78,6 +82,23 @@ export async function createContentStore(config) {
         }
       }
       roadmaps.splice(0, roadmaps.length, ...index.values());
+    },
+    async loadUserState(userId) {
+      if (!currentUser || currentUser.uid !== userId) throw new Error("Sign in to load your learning data.");
+      const snapshot = await getDoc(doc(db, USER_STATE_COLLECTION, userId));
+      return snapshot.exists() ? snapshot.data() : null;
+    },
+    async saveUserState(userId, state) {
+      if (!currentUser || currentUser.uid !== userId) throw new Error("Sign in to save your learning data.");
+      const personalState = {
+        favorites: Array.isArray(state.favorites) ? state.favorites : [],
+        started: Array.isArray(state.started) ? state.started : [],
+        progress: state.progress && typeof state.progress === "object" ? state.progress : {},
+        learning: state.learning && typeof state.learning === "object" ? state.learning : {},
+        skipped: state.skipped && typeof state.skipped === "object" ? state.skipped : {},
+        updatedAt: serverTimestamp()
+      };
+      await setDoc(doc(db, USER_STATE_COLLECTION, userId), personalState);
     },
     async signIn() {
       if (matchMedia("(pointer: coarse)").matches) return signInWithRedirect(auth, provider);

@@ -58,6 +58,16 @@
           </div>
           <button class="icon-button" id="languageToggle" type="button" aria-label="Change language" title="Change language" data-i18n-aria="language" data-i18n-title="language"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0-18"/></svg></button>
           <button class="icon-button" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
+          <div class="account-control" id="accountControl">
+            <button class="account-button" id="accountButton" type="button" data-action="account-toggle" aria-expanded="false" aria-controls="accountPopover" aria-label="Sign in" data-i18n-aria="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span id="accountButtonLabel" data-i18n="signIn">Sign in</span></button>
+            <span class="admin-badge account-admin-indicator" id="accountAdminIndicator" hidden data-i18n="adminBadge">Admin</span>
+            <section class="account-popover" id="accountPopover" aria-label="Account" data-i18n-aria="account" hidden>
+              <strong class="account-email" id="accountEmail"></strong>
+              <span class="admin-badge" id="accountAdminBadge" hidden data-i18n="adminBadge">Admin</span>
+              <p class="account-sync-note" id="accountSyncNote"></p>
+              <button class="account-popover-action" type="button" data-action="account-signout" data-i18n="signOut">Sign out</button>
+            </section>
+          </div>
           <button class="icon-button compact-menu" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="platformNavMobile" data-i18n-aria="menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         </div>
       </header>
