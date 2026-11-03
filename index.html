@@ -70,17 +70,31 @@
             <kbd aria-hidden="true">Ctrl K</kbd>
             <div class="search-results" id="searchResults" role="listbox" aria-label="Search results" data-i18n-aria="searchResults" hidden></div>
           </div>
-          <button class="icon-button language-toggle" id="languageToggle" type="button" aria-label="Switch to Arabic" title="Switch to Arabic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0-18"/></svg><span id="languageToggleLabel">عربي</span></button>
-          <button class="icon-button" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button>
-          <button class="admin-edit-mode-toggle" id="adminEditModeButton" type="button" data-action="toggle-admin-edit-mode" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span id="adminEditModeLabel">Edit roadmap</span></button>
-          <div class="account-control" id="accountControl">
-            <button class="account-button" id="accountButton" type="button" data-action="account-toggle" aria-expanded="false" aria-controls="accountPopover" aria-label="Sign in" data-i18n-aria="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span id="accountButtonLabel" data-i18n="signIn">Sign in</span></button>
-            <span class="admin-badge account-admin-indicator" id="accountAdminIndicator" hidden data-i18n="adminBadge">Admin</span>
-            <section class="account-popover" id="accountPopover" aria-label="Account" data-i18n-aria="account" hidden>
-              <strong class="account-email" id="accountEmail"></strong>
-              <span class="admin-badge" id="accountAdminBadge" hidden data-i18n="adminBadge">Admin</span>
-              <p class="account-sync-note" id="accountSyncNote"></p>
-              <button class="account-popover-action" type="button" data-action="account-signout" data-i18n="signOut">Sign out</button>
+          <div class="settings-control" id="settingsControl">
+            <button class="icon-button settings-toggle" id="settingsToggle" type="button" data-action="settings-toggle" aria-label="Settings" data-i18n-aria="settings" aria-expanded="false" aria-controls="settingsPopover" aria-haspopup="true" title="Settings" data-i18n-title="settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 0 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 0 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/></svg>
+            </button>
+            <section class="settings-popover" id="settingsPopover" aria-labelledby="settingsHeading" hidden>
+              <h2 id="settingsHeading" data-i18n="settings">Settings</h2>
+              <button class="settings-option" id="languageToggle" type="button" aria-label="Switch to Arabic" title="Switch to Arabic">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0-18"/></svg>
+                <span class="settings-option-copy"><span class="settings-option-label" data-i18n="language">Language</span><strong id="languageToggleLabel">العربية</strong></span>
+              </button>
+              <button class="settings-option" id="themeToggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l-1.41-1.41m12.14-11.25 1.41-1.41"/></svg>
+                <span class="settings-option-copy"><span class="settings-option-label" data-i18n="appearance">Appearance</span><strong id="themeToggleLabel">Switch to dark theme</strong></span>
+              </button>
+              <button class="admin-edit-mode-toggle settings-admin-edit" id="adminEditModeButton" type="button" data-action="toggle-admin-edit-mode" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg><span id="adminEditModeLabel">Edit roadmap</span></button>
+              <div class="account-control settings-account" id="accountControl">
+                <button class="account-button" id="accountButton" type="button" data-action="account-toggle" aria-expanded="false" aria-controls="accountPopover" aria-label="Sign in" data-i18n-aria="signIn"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span id="accountButtonLabel" data-i18n="signIn">Sign in</span></button>
+                <span class="admin-badge account-admin-indicator" id="accountAdminIndicator" hidden data-i18n="adminBadge">Admin</span>
+                <section class="account-popover" id="accountPopover" aria-label="Account" data-i18n-aria="account" hidden>
+                  <strong class="account-email" id="accountEmail"></strong>
+                  <span class="admin-badge" id="accountAdminBadge" hidden data-i18n="adminBadge">Admin</span>
+                  <p class="account-sync-note" id="accountSyncNote"></p>
+                  <button class="account-popover-action" type="button" data-action="account-signout" data-i18n="signOut">Sign out</button>
+                </section>
+              </div>
             </section>
           </div>
           <button class="icon-button compact-menu" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="platformNavMobile" data-i18n-aria="menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>

@@ -158,6 +158,7 @@
       globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
       sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2m-17.1 7.1 1.4-1.4m11.4-11.4 1.4-1.4"/>',
       moon: '<path d="M20.7 14.2A8.5 8.5 0 0 1 9.8 3.3 8.6 8.6 0 1 0 20.7 14.2Z"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 0 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 0 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/>',
       menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
       close: '<path d="m6 6 12 12M18 6 6 18"/>',
       clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -243,13 +244,19 @@
     document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => element.setAttribute("placeholder", tr(element.dataset.i18nPlaceholder)));
     document.querySelectorAll("[data-i18n-alt]").forEach((element) => element.setAttribute("alt", tr(element.dataset.i18nAlt)));
     searchInput.setAttribute("aria-label", tr("search"));
+    const settingsPopover = document.getElementById("settingsPopover");
+    const settingsToggle = document.getElementById("settingsToggle");
+    if (settingsToggle) {
+      settingsToggle.setAttribute("aria-expanded", String(Boolean(settingsPopover && !settingsPopover.hidden)));
+      settingsToggle.title = tr("settings");
+    }
     const languageToggle = document.getElementById("languageToggle");
     const languageLabel = document.getElementById("languageToggleLabel");
     const languageAction = isArabic ? tr("switchToEnglish") : tr("switchToArabic");
     languageToggle.setAttribute("aria-label", languageAction);
     languageToggle.title = languageAction;
     languageLabel.textContent = isArabic ? "الإنجليزية" : "العربية";
-    languageToggle.innerHTML = `${icon("globe")}<span id="languageToggleLabel">${escapeHtml(isArabic ? "الإنجليزية" : "العربية")}</span>`;
+    languageToggle.innerHTML = `${icon("globe")}<span class="settings-option-copy"><span class="settings-option-label">${escapeHtml(tr("language"))}</span><strong id="languageToggleLabel">${escapeHtml(isArabic ? "الإنجليزية" : "العربية")}</strong></span>`;
     document.querySelector(".platform-nav")?.setAttribute("aria-label", tr("primaryNav"));
     document.querySelector(".mobile-nav")?.setAttribute("aria-label", tr("primaryNav"));
     document.querySelector(".platform-tools")?.setAttribute("dir", isArabic ? "rtl" : "ltr");
@@ -257,7 +264,7 @@
     const themeButton = document.getElementById("themeToggle");
     themeButton.setAttribute("aria-label", themeLabel);
     themeButton.title = themeLabel;
-    themeButton.innerHTML = icon(state.theme === "dark" ? "sun" : "moon");
+    themeButton.innerHTML = `${icon(state.theme === "dark" ? "sun" : "moon")}<span class="settings-option-copy"><span class="settings-option-label">${escapeHtml(tr("appearance"))}</span><strong id="themeToggleLabel">${escapeHtml(themeLabel)}</strong></span>`;
     document.querySelector(".search-wrap kbd").textContent = isArabic ? "بحث" : "Ctrl K";
     document.querySelector("meta[name='theme-color']").content = state.theme === "dark" ? "#101c23" : "#183244";
     document.querySelector("meta[name='description']").content = tr("metaDescription");
@@ -1684,6 +1691,19 @@
     }
     if (!action) return;
     const name = action.dataset.action;
+    if (name === "settings-toggle") {
+      event.preventDefault();
+      const panel = document.getElementById("settingsPopover");
+      const open = panel.hidden;
+      panel.hidden = !open;
+      action.setAttribute("aria-expanded", String(open));
+      if (!open) {
+        const accountPopover = document.getElementById("accountPopover");
+        accountPopover.hidden = true;
+        document.getElementById("accountButton").setAttribute("aria-expanded", "false");
+      }
+      return;
+    }
     if (name === "toggle-admin-edit-mode") {
       event.preventDefault();
       if (!canEditContent()) return;
@@ -1724,6 +1744,8 @@
     if (name === "account-toggle") {
       event.preventDefault();
       if (!contentStore.user) {
+        document.getElementById("settingsPopover").hidden = true;
+        document.getElementById("settingsToggle").setAttribute("aria-expanded", "false");
         setRoute("/login/");
       } else {
         const popover = document.getElementById("accountPopover");
@@ -1985,6 +2007,12 @@
   });
   document.addEventListener("click", (event) => {
     if (!searchWrap.contains(event.target)) closeSearchResults();
+    const settingsControl = document.getElementById("settingsControl");
+    if (!settingsControl.contains(event.target)) {
+      const settingsPopover = document.getElementById("settingsPopover");
+      settingsPopover.hidden = true;
+      document.getElementById("settingsToggle").setAttribute("aria-expanded", "false");
+    }
     const accountControl = document.getElementById("accountControl");
     if (!accountControl.contains(event.target)) {
       const popover = document.getElementById("accountPopover");
@@ -1993,6 +2021,16 @@
     }
   });
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      const settingsPopover = document.getElementById("settingsPopover");
+      if (settingsPopover && !settingsPopover.hidden) {
+        event.preventDefault();
+        settingsPopover.hidden = true;
+        document.getElementById("settingsToggle").setAttribute("aria-expanded", "false");
+        document.getElementById("settingsToggle").focus();
+        return;
+      }
+    }
     if (root.querySelector("#contentEditDialog")?.open) return;
     const route = parseRoute();
     if (route.page !== "learn") return;
